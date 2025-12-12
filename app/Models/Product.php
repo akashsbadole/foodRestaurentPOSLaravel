@@ -51,4 +51,66 @@ class Product extends Model
     {
         return $this->belongsToMany(Collection::class, 'collection_product');
     }
+
+    // Restaurant-specific relationships
+    public function modifierGroups()
+    {
+        return $this->belongsToMany(\App\Models\Restaurant\MenuModifierGroup::class, 'product_modifier_groups')
+                    ->withPivot('is_required', 'display_order')
+                    ->withTimestamps();
+    }
+
+    public function kitchenStations()
+    {
+        return $this->belongsToMany(\App\Models\Restaurant\KitchenStation::class, 'kitchen_station_items')
+                    ->withPivot('preparation_time', 'display_order')
+                    ->withTimestamps();
+    }
+
+    public function restaurantOrderItems()
+    {
+        return $this->hasMany(\App\Models\Restaurant\RestaurantOrderItem::class);
+    }
+
+    // Restaurant-specific scopes
+    public function scopeFood($query)
+    {
+        return $query->where('product_category', 'food');
+    }
+
+    public function scopeBeverage($query)
+    {
+        return $query->where('product_category', 'beverage');
+    }
+
+    public function scopeKitchenItems($query)
+    {
+        return $query->where('is_kitchen_item', true);
+    }
+
+    public function scopeAvailable($query)
+    {
+        return $query->where('is_available', true);
+    }
+
+    // Restaurant-specific methods
+    public function isAvailableForRestaurant()
+    {
+        return $this->is_active && $this->is_available;
+    }
+
+    public function getPreparationTime()
+    {
+        return $this->preparation_time ?? 0;
+    }
+
+    public function getAllergenInfo()
+    {
+        return $this->allergen_info ?? [];
+    }
+
+    public function getNutritionalInfo()
+    {
+        return $this->nutritional_info ?? [];
+    }
 }

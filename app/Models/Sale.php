@@ -124,4 +124,42 @@ class Sale extends Model
     {
         return $this->belongsTo(Contact::class);
     }
+
+    // Restaurant-specific relationships
+    public function restaurantOrder()
+    {
+        return $this->belongsTo(\App\Models\Restaurant\RestaurantOrder::class, 'restaurant_order_id');
+    }
+
+    public function restaurantOrderItems()
+    {
+        return $this->hasManyThrough(\App\Models\Restaurant\RestaurantOrderItem::class, \App\Models\Restaurant\RestaurantOrder::class, 'sale_id', 'order_id');
+    }
+
+    // Restaurant-specific scopes
+    public function scopeRestaurant($query)
+    {
+        return $query->where('order_type', 'restaurant');
+    }
+
+    public function scopeRetail($query)
+    {
+        return $query->where('order_type', 'retail');
+    }
+
+    // Restaurant-specific methods
+    public function isRestaurantOrder()
+    {
+        return $this->order_type === 'restaurant';
+    }
+
+    public function getTipAmount()
+    {
+        return $this->tip_amount ?? 0;
+    }
+
+    public function getServiceChargeAmount()
+    {
+        return $this->service_charge_amount ?? 0;
+    }
 }

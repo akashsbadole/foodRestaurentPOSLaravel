@@ -67,4 +67,32 @@ class SaleItem extends Model
         }
         return $query;
     }
+
+    // Restaurant-specific relationships
+    public function restaurantOrderItem()
+    {
+        return $this->belongsTo(\App\Models\Restaurant\RestaurantOrderItem::class, 'restaurant_order_item_id');
+    }
+
+    public function servedBy()
+    {
+        return $this->belongsTo(User::class, 'served_by');
+    }
+
+    // Restaurant-specific scopes
+    public function scopeByCourse($query, $courseNumber)
+    {
+        return $query->where('course_number', $courseNumber);
+    }
+
+    // Restaurant-specific methods
+    public function isRestaurantItem()
+    {
+        return !is_null($this->restaurant_order_item_id);
+    }
+
+    public function getCourseNumber()
+    {
+        return $this->course_number ?? 1;
+    }
 }

@@ -35,6 +35,11 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\DevDatabaseController;
 use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\RestaurantController;
+use App\Http\Controllers\TableController;
+use App\Http\Controllers\KitchenController;
+use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\OrderController;
 
 // Installer routes (must be before auth routes)
 require __DIR__ . '/installer.php';
@@ -268,6 +273,76 @@ Route::get('/update', [UpgradeController::class, 'showUploadForm'])->name('uploa
             $message->to($request->input('test_mail'))->subject('Mail received');
         });
         return 'Mail sent';
+    });
+
+    // Restaurant Management Routes
+    Route::prefix('restaurant')->name('restaurant.')->group(function () {
+        // Restaurant Dashboard and Main Routes
+        Route::get('/dashboard', [RestaurantController::class, 'dashboard'])->name('dashboard');
+        Route::get('/floor-plan', [RestaurantController::class, 'floorPlan'])->name('floor-plan');
+        Route::get('/statistics', [RestaurantController::class, 'getStatistics'])->name('statistics');
+        Route::get('/live-status', [RestaurantController::class, 'getLiveStatus'])->name('live-status');
+        Route::get('/quick-actions', [RestaurantController::class, 'getQuickActions'])->name('quick-actions');
+        Route::get('/shift-management', [RestaurantController::class, 'shiftManagement'])->name('shift-management');
+        
+        // Table Management Routes
+        Route::prefix('tables')->name('tables.')->group(function () {
+            Route::get('/', [TableController::class, 'index'])->name('index');
+            Route::get('/create', [TableController::class, 'create'])->name('create');
+            Route::post('/', [TableController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [TableController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [TableController::class, 'update'])->name('update');
+            Route::delete('/{id}', [TableController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/status', [TableController::class, 'updateStatus'])->name('update-status');
+            Route::get('/available', [TableController::class, 'getAvailableTables'])->name('available');
+            Route::get('/{id}/details', [TableController::class, 'getTableDetails'])->name('details');
+            Route::post('/positions', [TableController::class, 'updatePositions'])->name('update-positions');
+            Route::get('/statistics', [TableController::class, 'getStatistics'])->name('statistics');
+        });
+        
+        // Kitchen Display Routes
+        Route::prefix('kitchen')->name('kitchen.')->group(function () {
+            Route::get('/dashboard', [KitchenController::class, 'dashboard'])->name('dashboard');
+            Route::get('/station/{stationId}', [KitchenController::class, 'station'])->name('station');
+            Route::post('/queue/{queueId}/start', [KitchenController::class, 'startPreparation'])->name('start-preparation');
+            Route::post('/queue/{queueId}/ready', [KitchenController::class, 'markAsReady'])->name('mark-ready');
+            Route::post('/queue/{queueId}/complete', [KitchenController::class, 'complete'])->name('complete');
+            Route::post('/queue/add', [KitchenController::class, 'addToQueue'])->name('add-to-queue');
+            Route::post('/queue/{queueId}/priority', [KitchenController::class, 'updatePriority'])->name('update-priority');
+            Route::get('/statistics', [KitchenController::class, 'getStatistics'])->name('statistics');
+            Route::get('/queue-status', [KitchenController::class, 'getQueueStatus'])->name('queue-status');
+            Route::get('/stations', [KitchenController::class, 'getStations'])->name('stations');
+        });
+        
+        // Reservation Management Routes
+        Route::prefix('reservations')->name('reservations.')->group(function () {
+            Route::get('/', [ReservationController::class, 'index'])->name('index');
+            Route::get('/create', [ReservationController::class, 'create'])->name('create');
+            Route::post('/', [ReservationController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [ReservationController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [ReservationController::class, 'update'])->name('update');
+            Route::delete('/{id}', [ReservationController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/status', [ReservationController::class, 'updateStatus'])->name('update-status');
+            Route::get('/available-slots', [ReservationController::class, 'getAvailableSlots'])->name('available-slots');
+            Route::get('/upcoming', [ReservationController::class, 'getUpcoming'])->name('upcoming');
+            Route::get('/statistics', [ReservationController::class, 'getStatistics'])->name('statistics');
+        });
+        
+        // Order Management Routes
+        Route::prefix('orders')->name('orders.')->group(function () {
+            Route::get('/', [OrderController::class, 'index'])->name('index');
+            Route::get('/create', [OrderController::class, 'create'])->name('create');
+            Route::post('/', [OrderController::class, 'store'])->name('store');
+            Route::get('/{id}', [OrderController::class, 'show'])->name('show');
+            Route::put('/{id}', [OrderController::class, 'update'])->name('update');
+            Route::post('/{id}/status', [OrderController::class, 'updateStatus'])->name('update-status');
+            Route::post('/{id}/add-item', [OrderController::class, 'addItem'])->name('add-item');
+            Route::put('/{orderId}/items/{itemId}', [OrderController::class, 'updateItem'])->name('update-item');
+            Route::delete('/{orderId}/items/{itemId}', [OrderController::class, 'removeItem'])->name('remove-item');
+            Route::post('/{id}/split', [OrderController::class, 'splitOrder'])->name('split');
+            Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->name('cancel');
+            Route::get('/statistics', [OrderController::class, 'getStatistics'])->name('statistics');
+        });
     });
 });
 

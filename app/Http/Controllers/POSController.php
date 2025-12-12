@@ -28,6 +28,15 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Charge;
 
+// Restaurant POS imports
+use App\Models\Restaurant\RestaurantOrder;
+use App\Models\Restaurant\RestaurantTable;
+use App\Models\Restaurant\TableReservation;
+use App\Models\Restaurant\RestaurantOrderItem;
+use App\Models\Restaurant\RestaurantOrderItemModifier;
+use App\Models\Restaurant\MenuModifier;
+use App\Models\Restaurant\OrderSplit;
+
 class POSController extends Controller
 {
     public function getProducts($filters = [])
@@ -668,5 +677,357 @@ class POSController extends Controller
     public function customerDisplay()
     {
         return Inertia::render('POS/CustomerDisplay', []);
+    }
+
+    // Restaurant POS Methods
+    
+    /**
+     * Display the restaurant POS interface
+     */
+    public function restaurantIndex()
+    {
+        $contacts = Contact::select('id', 'name', 'balance')->customers()->get();
+        $currentStore = Store::find(session('store_id', Auth::user()->store_id));
+
+        if (!$currentStore) {
+            return redirect()->route('store');
+        }
+
+        // Get restaurant-specific data
+        $tables = RestaurantTable::with(['section', 'currentOrder'])
+            ->forStore($currentStore->id)
+            ->get();
+
+        $products = $this->getProducts();
+        $categories = Collection::where('collection_type', 'category')->get();
+        $allCollections = Collection::all();
+        
+        $miscSettings = Setting::where('meta_key', 'misc_settings')->first();
+        $miscSettings = json_decode($miscSettings->meta_value, true);
+        $cart_first_focus = $miscSettings['cart_first_focus'] ?? 'quantity';
+
+        // Get default charges
+        $defaultCharges = Charge::where('is_active', true)
+            ->where('is_default', true)
+            ->get()
+            ->map(function($charge) {
+                return [
+                    'id' => $charge->id,
+                    'name' => $charge->name,
+                    'charge_type' => $charge->charge_type,
+                    'rate_value' => $charge->rate_value,
+                    'rate_type' => $charge->rate_type,
+                    'is_active' => $charge->is_active,
+                ];
+            })
+            ->toArray();
+
+        // Get active reservations for today
+        $reservations = TableReservation::with(['table', 'contact'])
+            ->forDate(now())
+            ->whereIn('status', ['confirmed', 'seated'])
+            ->orderBy('reservation_time')
+            ->get();
+
+        // Get active orders
+        $activeOrders = RestaurantOrder::with(['table', 'items', 'waiter'])
+            ->forStore($currentStore->id)
+            ->active()
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('RestaurantPOS/RestaurantPOS', [
+            'products' => $products,
+            'urlImage' => url('/storage/'),
+            'customers' => $contacts,
+            'currentStore' => $currentStore->name,
+            'tables' => $tables,
+            'reservations' => $reservations,
+            'activeOrders' => $activeOrders,
+            'categories' => $categories,
+            'all_collections' => $allCollections,
+            'cart_first_focus' => $cart_first_focus,
+            'misc_settings' => $miscSettings,
+            'default_charges' => $defaultCharges
+        ]);
+    }
+
+    /**
+     * Process restaurant order checkout
+     */
+    public function restaurantCheckout(Request $request)
+    {
+        $orderType = $request->input('order_type', 'dine_in');
+        $tableId = $request->input('table_id');
+        $customerCount = $request->input('customer_count', 1);
+        $waiterId = $request->input('waiter_id', Auth::id());
+        $specialInstructions = $request->input('special_instructions');
+        $cartItems = $request->input('cartItems');
+        $charges = $request->input('charges', []);
+        $payments = $request->input('payments', []);
+        $splitType = $request->input('split_type', 'single');
+        $splits = $request->input('splits', []);
+
+        DB::beginTransaction();
+        try {
+            // Get store_id from request, session, or authenticated user
+            $storeId = $request->input('store_id')
+                ?? session('store_id')
+                ?? (Auth::user() ? Auth::user()->store_id : null);
+
+            // Create restaurant order
+            $restaurantOrder = RestaurantOrder::create([
+                'order_number' => $this->generateOrderNumber(),
+                'order_type' => $orderType,
+                'customer_count' => $customerCount,
+                'waiter_id' => $waiterId,
+                'status' => 'pending',
+                'priority' => 'normal',
+                'special_instructions' => $specialInstructions,
+                'order_date' => now()->toDateString(),
+                'order_time' => now(),
+                'store_id' => $storeId,
+                'created_by' => Auth::id(),
+            ]);
+
+            // Set table if dine-in
+            if ($orderType === 'dine_in' && $tableId) {
+                $restaurantOrder->table_id = $tableId;
+                $restaurantOrder->save();
+
+                // Update table status
+                $table = RestaurantTable::find($tableId);
+                if ($table) {
+                    $table->markAsOccupied($restaurantOrder->id);
+                }
+            }
+
+            // Create order items
+            $subtotal = 0;
+            foreach ($cartItems as $item) {
+                $orderItem = RestaurantOrderItem::create([
+                    'order_id' => $restaurantOrder->id,
+                    'product_id' => $item['id'],
+                    'batch_id' => $item['batch_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['price'],
+                    'unit_cost' => $item['cost'],
+                    'discount' => $item['discount'] ?? 0,
+                    'status' => 'pending',
+                    'special_instructions' => $item['special_instructions'] ?? null,
+                ]);
+
+                // Add modifiers if any
+                if (isset($item['modifiers']) && !empty($item['modifiers'])) {
+                    foreach ($item['modifiers'] as $modifier) {
+                        RestaurantOrderItemModifier::create([
+                            'order_item_id' => $orderItem->id,
+                            'modifier_id' => $modifier['id'],
+                            'quantity' => $modifier['quantity'] ?? 1,
+                            'price_adjustment' => $modifier['price_adjustment'] ?? 0,
+                        ]);
+                    }
+                }
+
+                $subtotal += $orderItem->calculateSubtotal();
+
+                // Update stock if managed
+                $product = Product::find($item['id']);
+                if ($product && $product->is_stock_managed) {
+                    $productStock = ProductStock::where('store_id', $storeId)
+                        ->where('batch_id', $item['batch_id'])
+                        ->first();
+
+                    if ($productStock) {
+                        $productStock->quantity -= $item['quantity'];
+                        if ($productStock->quantity < 0) {
+                            $productStock->quantity = 0;
+                        }
+                        $productStock->save();
+                    }
+                }
+            }
+
+            // Calculate totals
+            $restaurantOrder->subtotal = $subtotal;
+            $restaurantOrder->tax_amount = $restaurantOrder->calculateTax();
+            $restaurantOrder->service_charge = $restaurantOrder->calculateServiceCharge();
+            $restaurantOrder->discount_amount = $request->input('discount', 0);
+            $restaurantOrder->total_amount = $restaurantOrder->subtotal + 
+                                           $restaurantOrder->tax_amount + 
+                                           $restaurantOrder->service_charge - 
+                                           $restaurantOrder->discount_amount;
+            $restaurantOrder->save();
+
+            // Create sale record for payment processing
+            $sale = Sale::create([
+                'store_id' => $storeId,
+                'contact_id' => $request->input('contact_id'),
+                'sale_date' => now()->toDateString(),
+                'sale_time' => now()->format('H:i:s'),
+                'total_amount' => $restaurantOrder->total_amount,
+                'discount' => $restaurantOrder->discount_amount,
+                'amount_received' => 0,
+                'profit_amount' => 0,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'note' => "Restaurant Order #{$restaurantOrder->order_number}",
+                'created_by' => Auth::id(),
+                'cart_snapshot' => json_encode($cartItems),
+            ]);
+
+            // Link restaurant order to sale
+            $restaurantOrder->sale_id = $sale->id;
+            $restaurantOrder->save();
+
+            // Process payments if provided
+            $amountReceived = 0;
+            if (!empty($payments)) {
+                foreach ($payments as $payment) {
+                    $transactionData = [
+                        'sales_id' => $sale->id,
+                        'store_id' => $storeId,
+                        'contact_id' => $sale->contact_id,
+                        'transaction_date' => $sale->sale_date,
+                        'amount' => $payment['amount'],
+                        'payment_method' => $payment['payment_method'],
+                        'transaction_type' => 'sale',
+                    ];
+
+                    if ($payment['payment_method'] == 'Account') {
+                        $transactionData['transaction_type'] = 'account';
+                        Contact::where('id', $sale->contact_id)->decrement('balance', $payment['amount']);
+                    }
+
+                    Transaction::create($transactionData);
+                    $amountReceived += $payment['amount'];
+                }
+
+                if ($amountReceived >= $restaurantOrder->total_amount) {
+                    $sale->payment_status = 'completed';
+                    $sale->status = 'completed';
+                    $restaurantOrder->status = 'paid';
+                }
+
+                $sale->amount_received = $amountReceived;
+                $sale->save();
+            }
+
+            // Handle order splits if applicable
+            if ($splitType !== 'single' && !empty($splits)) {
+                foreach ($splits as $splitData) {
+                    $orderSplit = OrderSplit::create([
+                        'order_id' => $restaurantOrder->id,
+                        'split_type' => $splitType,
+                        'split_count' => count($splits),
+                        'split_number' => $splitData['split_number'],
+                        'contact_id' => $splitData['contact_id'] ?? null,
+                        'status' => 'pending',
+                    ]);
+
+                    // Add items to this split
+                    if (isset($splitData['items']) && !empty($splitData['items'])) {
+                        foreach ($splitData['items'] as $item) {
+                            OrderSplitItem::create([
+                                'split_id' => $orderSplit->id,
+                                'order_item_id' => $item['order_item_id'],
+                                'quantity' => $item['quantity'],
+                            ]);
+                        }
+                    }
+
+                    $orderSplit->calculateTotals();
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Restaurant order created successfully!',
+                'order_id' => $restaurantOrder->id,
+                'sale_id' => $sale->id,
+                'order_number' => $restaurantOrder->order_number,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Restaurant order failed', [
+                'error_message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Generate unique order number
+     */
+    private function generateOrderNumber()
+    {
+        $prefix = 'ORD';
+        $date = now()->format('Ymd');
+        $lastOrder = RestaurantOrder::whereDate('created_at', today())
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        $sequence = $lastOrder ? intval(substr($lastOrder->order_number, -4)) + 1 : 1;
+        
+        return $prefix . $date . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Get order details for editing
+     */
+    public function editRestaurantOrder($orderId)
+    {
+        $order = RestaurantOrder::with([
+            'table', 
+            'items.product', 
+            'items.modifiers.modifier',
+            'waiter',
+            'splits.items.orderItem'
+        ])->findOrFail($orderId);
+
+        $contacts = Contact::select('id', 'name', 'balance')->customers()->get();
+        $currentStore = Store::find($order->store_id);
+        $products = $this->getProducts();
+        $categories = Collection::where('collection_type', 'category')->get();
+        $allCollections = Collection::all();
+        
+        $miscSettings = Setting::where('meta_key', 'misc_settings')->first();
+        $miscSettings = json_decode($miscSettings->meta_value, true);
+        $cart_first_focus = $miscSettings['cart_first_focus'] ?? 'quantity';
+
+        // Get default charges
+        $defaultCharges = Charge::where('is_active', true)
+            ->where('is_default', true)
+            ->get()
+            ->map(function($charge) {
+                return [
+                    'id' => $charge->id,
+                    'name' => $charge->name,
+                    'charge_type' => $charge->charge_type,
+                    'rate_value' => $charge->rate_value,
+                    'rate_type' => $charge->rate_type,
+                    'is_active' => $charge->is_active,
+                ];
+            })
+            ->toArray();
+
+        return Inertia::render('RestaurantPOS/EditOrder', [
+            'order' => $order,
+            'products' => $products,
+            'urlImage' => url('/storage/'),
+            'customers' => $contacts,
+            'currentStore' => $currentStore->name,
+            'categories' => $categories,
+            'all_collections' => $allCollections,
+            'cart_first_focus' => $cart_first_focus,
+            'misc_settings' => $miscSettings,
+            'default_charges' => $defaultCharges
+        ]);
     }
 }
