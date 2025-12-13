@@ -40,6 +40,8 @@ use App\Http\Controllers\TableController;
 use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\BrandSettingController;
+use App\Http\Controllers\BrandController;
 
 // Installer routes (must be before auth routes)
 require __DIR__ . '/installer.php';
@@ -111,6 +113,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/products/{product_id}/batches', [ProductController::class, 'getBatches'])->name('products.getBatches');
 
     Route::get('/pos', [POSController::class, 'index'])->name('pos.index');
+    Route::get('/restaurant-pos', [POSController::class, 'restaurantIndex'])->name('restaurant.pos.index');
     Route::get('/pos/{sale_id}/return', [POSController::class, 'returnIndex'])->name('pos.return');
     Route::post('/pos/checkout', [POSController::class, 'checkout'])->name('pos.checkout');
     Route::get('/pos/customer-display', [POSController::class, 'customerDisplay']);
@@ -155,6 +158,39 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/settings/get-template', [SettingController::class, 'getTemplate'])->name('settings.gettemplate');
     Route::post('/settings/save-template', [SettingController::class, 'saveTemplate'])->name('settings.savetemplate');
 
+    // Brand Settings Routes (Legacy)
+    Route::get('/settings/brand', [BrandSettingController::class, 'index'])->name('brand.settings.index');
+    Route::post('/settings/brand', [BrandSettingController::class, 'update'])->name('brand.settings.update');
+    Route::post('/settings/brand/logo', [BrandSettingController::class, 'uploadLogo'])->name('brand.settings.upload-logo');
+
+    // Enhanced Brand Management Routes
+    Route::prefix('brands')->name('brands.')->group(function () {
+        Route::get('/', [BrandController::class, 'index'])->name('index');
+        Route::get('/create', [BrandController::class, 'create'])->name('create');
+        Route::post('/', [BrandController::class, 'store'])->name('store');
+        Route::get('/{brand}', [BrandController::class, 'show'])->name('show');
+        Route::get('/{brand}/edit', [BrandController::class, 'edit'])->name('edit');
+        Route::put('/{brand}', [BrandController::class, 'update'])->name('update');
+        Route::delete('/{brand}', [BrandController::class, 'destroy'])->name('destroy');
+        
+        // Theme Builder
+        Route::get('/{brand}/theme-builder', [BrandController::class, 'themeBuilder'])->name('theme-builder');
+        Route::post('/{brand}/preview', [BrandController::class, 'preview'])->name('preview');
+        
+        // Industry Templates
+        Route::get('/industry-templates/{industryType}', [BrandController::class, 'getIndustryTemplates'])->name('industry-templates');
+        
+        // Export/Import
+        Route::get('/{brand}/export', [BrandController::class, 'export'])->name('export');
+        Route::post('/import', [BrandController::class, 'import'])->name('import');
+        
+        // Multi-brand Support
+        Route::post('/switch', [BrandController::class, 'switchBrand'])->name('switch');
+        
+        // Theme CSS
+        Route::get('/theme/{brandKey?}.css', [BrandController::class, 'getThemeCSS'])->name('theme.css');
+    });
+
     Route::get('/api/barcode-template', [SettingController::class, 'getBarcodeTemplate'])->name('barcode.template.get');
     Route::post('/api/barcode-template', [SettingController::class, 'saveBarcodeTemplate'])->name('barcode.template.save');
     Route::post('/api/barcode-template/preview', [SettingController::class, 'renderBarcodeTemplatePreview'])->name('barcode.template.preview');
@@ -175,9 +211,23 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/employee/{id}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employee/{id}/delete', [EmployeeController::class, 'delete'])->name('employees.delete');
 
-    Route::get('/payroll', [SalaryRecordController::class, 'index']);
+    Route::get('/payroll', [SalaryRecordController::class, 'index'])->name('payroll.dashboard');
+    Route::get('/payroll/process-payment', [SalaryRecordController::class, 'processPayment'])->name('payroll.process.payment');
+    Route::get('/payroll/salary-adjustments', [SalaryRecordController::class, 'salaryAdjustments'])->name('payroll.salary-adjustments');
+    Route::get('/payroll/adjustments/history', [SalaryRecordController::class, 'adjustmentsHistory'])->name('payroll.adjustments.history');
     Route::post('/salary-records', [SalaryRecordController::class, 'store']);
     Route::post('/salary/{id}/delete', [SalaryRecordController::class, 'delete']);
+    Route::post('/salary-adjustments', [SalaryRecordController::class, 'storeAdjustment'])->name('payroll.adjustments.store');
+    Route::put('/salary-adjustments/{id}', [SalaryRecordController::class, 'updateAdjustment'])->name('payroll.adjustments.update');
+    Route::delete('/salary-adjustments/{id}', [SalaryRecordController::class, 'deleteAdjustment'])->name('payroll.adjustments.delete');
+    Route::get('/payroll/reports', [SalaryRecordController::class, 'reportsIndex'])->name('payroll.reports.index');
+    Route::get('/payroll/reports/monthly', [SalaryRecordController::class, 'monthlyReport'])->name('payroll.reports.monthly');
+    Route::get('/payroll/reports/ytd', [SalaryRecordController::class, 'ytdReport'])->name('payroll.reports.ytd');
+    Route::get('/payroll/reports/employee/{id}', [SalaryRecordController::class, 'employeeReport'])->name('payroll.reports.employee');
+    Route::get('/payroll/export/current-month', [SalaryRecordController::class, 'exportCurrentMonth'])->name('payroll.export.current-month');
+    Route::get('/payroll/export/quarterly', [SalaryRecordController::class, 'exportQuarterly'])->name('payroll.export.quarterly');
+    Route::get('/payroll/export/yearly', [SalaryRecordController::class, 'exportYearly'])->name('payroll.export.yearly');
+    Route::get('/payroll/export/all', [SalaryRecordController::class, 'exportAll'])->name('payroll.export.all');
 
     Route::post('/employee-balance', [EmployeeBalanceController::class, 'store']);
     Route::get('/employee-balance-log', [EmployeeBalanceController::class, 'balanceLog']);

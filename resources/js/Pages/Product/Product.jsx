@@ -221,7 +221,8 @@ const productColumns = (handleProductEdit, onToggleFeatured, loadingBatchId) => 
 
 export default function Product({ products, stores, contacts }) {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    // Using Tailwind breakpoint values for consistency
+    const isMobile = useMediaQuery('(max-width: 479px)'); // Tailwind 'sm' breakpoint
     const auth = usePage().props.auth.user;
     const [batchModalOpen, setBatchModalOpen] = useState(false);
     const [quantityModalOpen, setQuantityModalOpen] = useState(false);

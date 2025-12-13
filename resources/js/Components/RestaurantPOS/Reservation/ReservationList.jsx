@@ -37,7 +37,9 @@ import {
   CalendarToday as CalendarIcon,
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
+import { useCustomTheme } from '@/Components/ThemeProvider';
+import { getReservationStatusColor } from '../../../lib/statusColors';
 
 const ListContainer = styled(Box)(({ theme }) => ({
   maxHeight: '70vh',
@@ -46,24 +48,22 @@ const ListContainer = styled(Box)(({ theme }) => ({
 }));
 
 const ReservationCard = styled(Card)(({ theme, status }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return theme.palette.success.main;
-      case 'pending': return theme.palette.warning.main;
-      case 'cancelled': return theme.palette.error.main;
-      case 'completed': return theme.palette.grey.main;
-      case 'no-show': return theme.palette.error.dark;
-      default: return theme.palette.grey.main;
-    }
-  };
-
   return {
-    borderLeft: `4px solid ${getStatusColor(status)}`,
+    background: theme.palette.mode === 'dark'
+      ? `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`
+      : `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.grey[50]} 100%)`,
+    borderLeft: `4px solid ${theme.palette[getStatusColor(status)]?.main || theme.palette.grey[500]}`,
     transition: 'all 0.3s ease',
     marginBottom: theme.spacing(2),
+    border: `1px solid ${theme.palette.divider}`,
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+      : '0 4px 20px rgba(30, 58, 95, 0.15)',
     '&:hover': {
       transform: 'translateY(-2px)',
-      boxShadow: theme.shadows[6],
+      boxShadow: theme.palette.mode === 'dark'
+        ? '0 8px 30px rgba(0, 0, 0, 0.4)'
+        : '0 8px 30px rgba(30, 58, 95, 0.2)',
     },
   };
 });
@@ -71,18 +71,18 @@ const ReservationCard = styled(Card)(({ theme, status }) => {
 const StatusChip = styled(Chip)(({ theme, status }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'confirmed': return 'success';
-      case 'pending': return 'warning';
-      case 'cancelled': return 'error';
-      case 'completed': return 'default';
-      case 'no-show': return 'error';
-      default: return 'default';
+      case 'confirmed': return '#10b981';
+      case 'pending': return '#f59e0b';
+      case 'cancelled': return '#ef4444';
+      case 'completed': return theme.palette.mode === 'dark' ? '#6b7280' : '#9ca3af';
+      case 'no-show': return '#dc2626';
+      default: return theme.palette.mode === 'dark' ? '#6b7280' : '#9ca3af';
     }
   };
 
   return {
-    backgroundColor: theme.palette[getStatusColor(status)].main,
-    color: theme.palette[getStatusColor(status)].contrastText,
+    backgroundColor: getStatusColor(status),
+    color: '#ffffff',
     fontWeight: 'bold',
   };
 });
@@ -103,7 +103,9 @@ const ReservationList = ({
   compact = false
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { isDarkMode } = useCustomTheme();
+  // Using Tailwind breakpoint values for consistency
+  const isMobile = useMediaQuery('(max-width: 767px)'); // Tailwind 'md' breakpoint
   const [viewMode, setViewMode] = useState(defaultView);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -134,7 +136,7 @@ const ReservationList = ({
     if (filterDate !== 'all') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       filtered = filtered.filter(reservation => {
         const reservationDate = new Date(reservation.date_time);
         reservationDate.setHours(0, 0, 0, 0);
@@ -225,10 +227,10 @@ const ReservationList = ({
   const formatTime = (dateTime) => {
     if (!dateTime) return '';
     const date = new Date(dateTime);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
@@ -255,7 +257,11 @@ const ReservationList = ({
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
               <Box flex={1}>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <Typography variant={compact ? "h6" : "h5"} fontWeight="bold">
+                  <Typography
+                    variant={compact ? "h6" : "h5"}
+                    fontWeight="bold"
+                    sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f' }}
+                  >
                     {reservation.customer_name}
                   </Typography>
                   <StatusChip
@@ -267,8 +273,11 @@ const ReservationList = ({
                     <Chip
                       label="Recurring"
                       size="small"
-                      color="secondary"
                       variant="outlined"
+                      sx={{
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+                        color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+                      }}
                     />
                   )}
                 </Box>
@@ -276,17 +285,23 @@ const ReservationList = ({
                 <Grid container spacing={1}>
                   <Grid item xs={12} sm={6}>
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <EventIcon fontSize="small" color="action" />
-                      <Typography variant="body2">
+                      <EventIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                      <Typography
+                        variant="body2"
+                        sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                      >
                         {formatDateTime(reservation.date_time)}
                       </Typography>
                     </Box>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6}>
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <PeopleIcon fontSize="small" color="action" />
-                      <Typography variant="body2">
+                      <PeopleIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                      <Typography
+                        variant="body2"
+                        sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                      >
                         {reservation.guest_count} guests
                       </Typography>
                     </Box>
@@ -295,8 +310,11 @@ const ReservationList = ({
                   {reservation.table_name && (
                     <Grid item xs={12} sm={6}>
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <RestaurantIcon fontSize="small" color="action" />
-                        <Typography variant="body2">
+                        <RestaurantIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                        <Typography
+                          variant="body2"
+                          sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                        >
                           Table: {reservation.table_name}
                         </Typography>
                       </Box>
@@ -306,8 +324,11 @@ const ReservationList = ({
                   {reservation.phone && (
                     <Grid item xs={12} sm={6}>
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <PhoneIcon fontSize="small" color="action" />
-                        <Typography variant="body2">
+                        <PhoneIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                        <Typography
+                          variant="body2"
+                          sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                        >
                           {reservation.phone}
                         </Typography>
                       </Box>
@@ -317,8 +338,11 @@ const ReservationList = ({
                   {reservation.email && (
                     <Grid item xs={12} sm={6}>
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <EmailIcon fontSize="small" color="action" />
-                        <Typography variant="body2">
+                        <EmailIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                        <Typography
+                          variant="body2"
+                          sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                        >
                           {reservation.email}
                         </Typography>
                       </Box>
@@ -327,7 +351,10 @@ const ReservationList = ({
 
                   {reservation.occasion && (
                     <Grid item xs={12}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+                      >
                         Occasion: {reservation.occasion}
                       </Typography>
                     </Grid>
@@ -335,7 +362,10 @@ const ReservationList = ({
 
                   {reservation.special_requests && (
                     <Grid item xs={12}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+                      >
                         Special: {reservation.special_requests}
                       </Typography>
                     </Grid>
@@ -348,20 +378,33 @@ const ReservationList = ({
                   <Tooltip title="Confirm Reservation">
                     <Button
                       size="small"
-                      color="success"
                       onClick={() => onReservationConfirm?.(reservation.id)}
+                      sx={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: '#ffffff',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        },
+                      }}
                     >
                       Confirm
                     </Button>
                   </Tooltip>
                 )}
-                
+
                 {allowStatusChange && reservation.status === 'confirmed' && (
                   <Tooltip title="Cancel Reservation">
                     <Button
                       size="small"
-                      color="error"
                       onClick={() => onReservationCancel?.(reservation.id)}
+                      sx={{
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+                        color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+                        '&:hover': {
+                          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 58, 95, 0.5)',
+                          backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                        },
+                      }}
                     >
                       Cancel
                     </Button>
@@ -373,6 +416,12 @@ const ReservationList = ({
                     <IconButton
                       size="small"
                       onClick={() => onReservationEdit?.(reservation)}
+                      sx={{
+                        color: isDarkMode ? '#90caf9' : '#1e3a5f',
+                        '&:hover': {
+                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(30, 58, 95, 0.05)',
+                        },
+                      }}
                     >
                       <EditIcon />
                     </IconButton>
@@ -383,8 +432,13 @@ const ReservationList = ({
                   <Tooltip title="Delete Reservation">
                     <IconButton
                       size="small"
-                      color="error"
                       onClick={() => onReservationDelete?.(reservation.id)}
+                      sx={{
+                        color: '#ef4444',
+                        '&:hover': {
+                          backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                        },
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -398,10 +452,16 @@ const ReservationList = ({
 
       {filteredReservations.length === 0 && (
         <Box textAlign="center" py={4}>
-          <Typography variant="h6" color="text.secondary">
+          <Typography
+            variant="h6"
+            sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)' }}
+          >
             No reservations found
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+          >
             Try adjusting your filters or search criteria
           </Typography>
         </Box>
@@ -423,7 +483,7 @@ const ReservationList = ({
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   {reservation.customer_name}
                 </Typography>
-                
+
                 <StatusChip
                   status={reservation.status}
                   label={reservation.status?.replace('-', ' ').toUpperCase()}
@@ -485,36 +545,141 @@ const ReservationList = ({
     <Box>
       {/* Header with Statistics */}
       <Box mb={3}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+        <Typography
+          variant="h4"
+          fontWeight="bold"
+          gutterBottom
+          sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f' }}
+        >
           Reservations
         </Typography>
-        
+
         <Grid container spacing={2} mb={2}>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stats.total} color="primary" showZero>
-                <Typography variant="h6">Total</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stats.total}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#3182ce',
+                    color: '#ffffff',
+                  },
+                }}
+                showZero
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+                >
+                  Total
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stats.today} color="success" showZero>
-                <Typography variant="h6">Today</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stats.today}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                  },
+                }}
+                showZero
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+                >
+                  Today
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stats.confirmed} color="info" showZero>
-                <Typography variant="h6">Confirmed</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stats.confirmed}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#3182ce',
+                    color: '#ffffff',
+                  },
+                }}
+                showZero
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+                >
+                  Confirmed
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stats.pending} color="warning" showZero>
-                <Typography variant="h6">Pending</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stats.pending}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#f59e0b',
+                    color: '#ffffff',
+                  },
+                }}
+                showZero
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+                >
+                  Pending
+                </Typography>
               </Badge>
             </Box>
           </Grid>
@@ -602,6 +767,26 @@ const ReservationList = ({
                   size="small"
                   onClick={() => setViewMode('list')}
                   startIcon={<ScheduleIcon />}
+                  sx={{
+                    ...(viewMode === 'list' ? {
+                      background: isDarkMode
+                        ? 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)'
+                        : 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+                      color: '#ffffff',
+                      '&:hover': {
+                        background: isDarkMode
+                          ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+                          : 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)',
+                      },
+                    } : {
+                      borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+                      color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+                      '&:hover': {
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 58, 95, 0.5)',
+                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(30, 58, 95, 0.05)',
+                      },
+                    }),
+                  }}
                 >
                   List
                 </Button>
@@ -610,6 +795,26 @@ const ReservationList = ({
                   size="small"
                   onClick={() => setViewMode('grid')}
                   startIcon={<CalendarIcon />}
+                  sx={{
+                    ...(viewMode === 'grid' ? {
+                      background: isDarkMode
+                        ? 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)'
+                        : 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+                      color: '#ffffff',
+                      '&:hover': {
+                        background: isDarkMode
+                          ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+                          : 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)',
+                      },
+                    } : {
+                      borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+                      color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+                      '&:hover': {
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 58, 95, 0.5)',
+                        backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(30, 58, 95, 0.05)',
+                      },
+                    }),
+                  }}
                 >
                   Grid
                 </Button>

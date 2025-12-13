@@ -89,72 +89,139 @@ input[type=number] {
     border-color: var(--border); /* override default border color */
   }
   :root {
-    --tw-border-style: dashed; 
+    --tw-border-style: dashed;
     --radius: 0.65rem;
-    --background: white;
-    --foreground: oklch(0.141 0.005 285.823);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.141 0.005 285.823);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.623 0.214 259.815);
-    --primary-foreground: oklch(0.97 0.014 254.604);
-    --secondary: oklch(0.967 0.001 286.375);
-    --secondary-foreground: oklch(0.21 0.006 285.885);
-    --muted: oklch(0.967 0.001 286.375);
-    --muted-foreground: oklch(0.552 0.016 285.938);
-    --accent: oklch(0.967 0.001 286.375);
-    --accent-foreground: oklch(0.21 0.006 285.885);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.92 0.004 286.32);
-    --input: oklch(0.92 0.004 286.32);
-    --ring: oklch(0.623 0.214 259.815);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.623 0.214 259.815);
-    --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-    --sidebar-accent: oklch(0.967 0.001 286.375);
-    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-    --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.623 0.214 259.815);
+    
+    /* Navy Blue Theme Colors */
+    --background: #f8fafc;                 /* Light grayish blue background */
+    --foreground: #1a202c;                 /* Dark blue-gray text */
+    --card: #ffffff;                       /* Clean white for cards */
+    --card-foreground: #1a202c;            /* Dark blue-gray text on cards */
+    --popover: #ffffff;                    /* Clean white for popovers */
+    --popover-foreground: #1a202c;        /* Dark blue-gray text on popovers */
+    
+    /* Primary Colors */
+    --primary: #1e3a5f;                    /* Deep navy blue */
+    --primary-foreground: #ffffff;          /* White text on primary */
+    --primary-light: #2c5282;               /* Lighter navy for hover states */
+    --accent: #3182ce;                     /* Brighter blue for actions */
+    --accent-foreground: #ffffff;          /* White text on accent */
+    
+    /* Secondary Colors */
+    --secondary: #e2e8f0;                  /* Light blue-gray */
+    --secondary-foreground: #1e3a5f;       /* Navy text on secondary */
+    --muted: #f1f5f9;                      /* Very light blue */
+    --muted-foreground: #4a5568;           /* Medium blue-gray */
+    
+    /* Status Colors */
+    --destructive: #ef4444;                /* Red for errors/danger */
+    --warning: #f59e0b;                    /* Amber for warnings */
+    --success: #10b981;                    /* Green for success */
+    --info: #3b82f6;                       /* Blue for information */
+    
+    /* Border and Input Colors */
+    --border: #e2e8f0;                     /* Light blue-gray border */
+    --input: #ffffff;                      /* White input background */
+    --ring: #1e3a5f;                       /* Navy focus ring */
+    
+    /* Restaurant Status Colors */
+    --table-available: #10b981;            /* Green for available tables */
+    --table-occupied: #ef4444;             /* Red for occupied tables */
+    --table-reserved: #f59e0b;             /* Amber for reserved tables */
+    --table-cleaning: #6b7280;            /* Gray for cleaning tables */
+    
+    --order-pending: #f59e0b;              /* Amber for pending orders */
+    --order-preparing: #3b82f6;            /* Blue for preparing orders */
+    --order-ready: #10b981;                /* Green for ready orders */
+    --order-served: #6b7280;               /* Gray for served orders */
+    
+    --kitchen-new: #f59e0b;                /* Amber for new kitchen items */
+    --kitchen-in-progress: #3b82f6;        /* Blue for in-progress kitchen items */
+    --kitchen-completed: #10b981;          /* Green for completed kitchen items */
+    --kitchen-cancelled: #ef4444;          /* Red for cancelled kitchen items */
+    
+    /* Chart Colors */
+    --chart-1: #1e3a5f;                   /* Navy */
+    --chart-2: #3182ce;                    /* Bright blue */
+    --chart-3: #10b981;                    /* Green */
+    --chart-4: #f59e0b;                    /* Amber */
+    --chart-5: #ef4444;                    /* Red */
+    
+    /* Sidebar Colors */
+    --sidebar: #ffffff;                   /* White sidebar */
+    --sidebar-foreground: #1a202c;        /* Dark blue-gray sidebar text */
+    --sidebar-primary: #1e3a5f;           /* Navy sidebar primary */
+    --sidebar-primary-foreground: #ffffff; /* White sidebar primary text */
+    --sidebar-accent: #e2e8f0;            /* Light blue-gray sidebar accent */
+    --sidebar-accent-foreground: #1e3a5f;  /* Navy sidebar accent text */
+    --sidebar-border: #e2e8f0;             /* Light blue-gray sidebar border */
+    --sidebar-ring: #1e3a5f;               /* Navy sidebar focus ring */
   }
 
   .dark {
-    --background: oklch(0.141 0.005 285.823);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.21 0.006 285.885);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.21 0.006 285.885);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.546 0.245 262.881);
-    --primary-foreground: oklch(0.379 0.146 265.522);
-    --secondary: oklch(0.274 0.006 286.033);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.274 0.006 286.033);
-    --muted-foreground: oklch(0.705 0.015 286.067);
-    --accent: oklch(0.274 0.006 286.033);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(96.416% 0.00011 271.152 / 0.1);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.488 0.243 264.376);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.21 0.006 285.885);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.546 0.245 262.881);
-    --sidebar-primary-foreground: oklch(0.379 0.146 265.522);
-    --sidebar-accent: oklch(0.274 0.006 286.033);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.488 0.243 264.376);
+    /* Dark Navy Theme Colors */
+    --background: #0f172a;                 /* Very dark navy background */
+    --foreground: #f8fafc;                 /* Light grayish blue text */
+    --card: #1e293b;                       /* Dark navy card */
+    --card-foreground: #f8fafc;            /* Light grayish blue text on cards */
+    --popover: #1e293b;                    /* Dark navy popover */
+    --popover-foreground: #f8fafc;        /* Light grayish blue text on popovers */
+    
+    /* Primary Colors (Dark) */
+    --primary: #2c5282;                    /* Lighter navy for dark mode */
+    --primary-foreground: #ffffff;         /* White text on primary */
+    --primary-light: #3182ce;              /* Brighter navy for hover states */
+    --accent: #4299e1;                     /* Even brighter blue for actions */
+    --accent-foreground: #ffffff;          /* White text on accent */
+    
+    /* Secondary Colors (Dark) */
+    --secondary: #334155;                  /* Dark blue-gray */
+    --secondary-foreground: #f8fafc;      /* Light text on secondary */
+    --muted: #1e293b;                      /* Very dark blue */
+    --muted-foreground: #94a3b8;          /* Medium light blue-gray */
+    
+    /* Status Colors (Dark) */
+    --destructive: #f87171;                /* Lighter red for dark mode */
+    --warning: #fbbf24;                    /* Lighter amber for dark mode */
+    --success: #34d399;                    /* Lighter green for dark mode */
+    --info: #60a5fa;                       /* Lighter blue for dark mode */
+    
+    /* Border and Input Colors (Dark) */
+    --border: #334155;                     /* Dark blue-gray border */
+    --input: #1e293b;                      /* Dark input background */
+    --ring: #2c5282;                       /* Lighter navy focus ring */
+    
+    /* Restaurant Status Colors (Dark) */
+    --table-available: #34d399;             /* Lighter green for available tables */
+    --table-occupied: #f87171;             /* Lighter red for occupied tables */
+    --table-reserved: #fbbf24;             /* Lighter amber for reserved tables */
+    --table-cleaning: #94a3b8;            /* Lighter gray for cleaning tables */
+    
+    --order-pending: #fbbf24;              /* Lighter amber for pending orders */
+    --order-preparing: #60a5fa;            /* Lighter blue for preparing orders */
+    --order-ready: #34d399;                /* Lighter green for ready orders */
+    --order-served: #94a3b8;               /* Lighter gray for served orders */
+    
+    --kitchen-new: #fbbf24;                /* Lighter amber for new kitchen items */
+    --kitchen-in-progress: #60a5fa;        /* Lighter blue for in-progress kitchen items */
+    --kitchen-completed: #34d399;          /* Lighter green for completed kitchen items */
+    --kitchen-cancelled: #f87171;          /* Lighter red for cancelled kitchen items */
+    
+    /* Chart Colors (Dark) */
+    --chart-1: #2c5282;                    /* Lighter navy */
+    --chart-2: #4299e1;                    /* Brighter blue */
+    --chart-3: #34d399;                    /* Lighter green */
+    --chart-4: #fbbf24;                    /* Lighter amber */
+    --chart-5: #f87171;                    /* Lighter red */
+    
+    /* Sidebar Colors (Dark) */
+    --sidebar: #1e293b;                    /* Dark navy sidebar */
+    --sidebar-foreground: #f8fafc;        /* Light sidebar text */
+    --sidebar-primary: #2c5282;            /* Lighter navy sidebar primary */
+    --sidebar-primary-foreground: #ffffff; /* White sidebar primary text */
+    --sidebar-accent: #334155;             /* Dark blue-gray sidebar accent */
+    --sidebar-accent-foreground: #f8fafc; /* Light sidebar accent text */
+    --sidebar-border: #334155;             /* Dark blue-gray sidebar border */
+    --sidebar-ring: #2c5282;               /* Lighter navy sidebar focus ring */
   }
 }

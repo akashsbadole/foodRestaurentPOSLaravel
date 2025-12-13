@@ -51,6 +51,10 @@ class DatabaseSeeder extends Seeder
             'payroll',
             'media',
             'settings',
+            'restaurant_tables',
+            'restaurant_orders',
+            'restaurant_kitchen',
+            'restaurant_reservations',
         ];
 
         foreach ($permissions as $permission) {
@@ -79,6 +83,10 @@ class DatabaseSeeder extends Seeder
             'payroll',
             'media',
             'settings',
+            'restaurant_tables',
+            'restaurant_orders',
+            'restaurant_kitchen',
+            'restaurant_reservations',
         ];
         $adminRole->givePermissionTo($adminPermissions);
 
@@ -112,6 +120,7 @@ class DatabaseSeeder extends Seeder
             ContactSeeder::class,
             SettingSeeder::class,
             RestaurantSeeder::class,
+            RestaurantPOSDataSeeder::class,
         ]);
     }
 }

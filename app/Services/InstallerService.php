@@ -314,7 +314,7 @@ class InstallerService
             'pos', 'products', 'inventory', 'sales', 'customers', 'vendors',
             'charges', 'collections', 'expenses', 'quotations', 'reloads',
             'cheques', 'sold-items', 'purchases', 'payments', 'stores',
-            'employees', 'payroll', 'media', 'settings',
+            'employees', 'payroll', 'payroll_management', 'payroll_reports', 'media', 'settings',
         ];
 
         foreach ($permissions as $permission) {

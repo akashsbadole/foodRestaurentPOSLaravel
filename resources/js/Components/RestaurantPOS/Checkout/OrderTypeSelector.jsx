@@ -30,17 +30,25 @@ import {
   Home as HomeIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
 
 const OrderTypeCard = styled(Card)(({ theme, selected }) => ({
   cursor: 'pointer',
   border: selected ? `2px solid ${theme.palette.primary.main}` : `2px solid ${theme.palette.divider}`,
-  backgroundColor: selected ? theme.palette.primary.light : theme.palette.background.paper,
+  backgroundColor: selected
+    ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.2)' : theme.palette.primary.light)
+    : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : theme.palette.background.paper),
   transition: 'all 0.3s ease',
   height: '100%',
   '&:hover': {
     transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[8],
-    backgroundColor: selected ? theme.palette.primary.light : theme.palette.action.hover,
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 8px 32px rgba(30, 58, 95, 0.3)'
+      : theme.shadows[8],
+    backgroundColor: selected
+      ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.3)' : theme.palette.primary.light)
+      : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.8)' : theme.palette.action.hover),
   },
 }));
 
@@ -55,6 +63,8 @@ const OrderTypeSelector = ({
   allowFutureOrders = true,
   defaultPrepTime = 15
 }) => {
+  const theme = useTheme();
+  const { isDarkMode } = useThemeContext();
   const [selectedOrderType, setSelectedOrderType] = useState(initialOrderType);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -180,13 +190,45 @@ const OrderTypeSelector = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(145deg, #1a2332 0%, #243447 100%)'
+            : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+          border: `1px solid ${theme.palette.mode === 'dark' ? '#2c3e50' : '#e2e8f0'}`,
+        }
+      }}
+    >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
+          <Typography
+            variant="h6"
+            sx={{
+              background: isDarkMode
+                ? 'linear-gradient(45deg, #64b5f6, #90caf9)'
+                : 'linear-gradient(45deg, #1e3a5f, #2c5282)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             Select Order Type
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#90caf9' : '#1e3a5f',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.1)' : 'rgba(30, 58, 95, 0.1)',
+              },
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>

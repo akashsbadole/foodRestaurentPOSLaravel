@@ -34,11 +34,17 @@ import {
   Restaurant as RestaurantIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     minHeight: '70vh',
     maxHeight: '90vh',
+    background: theme.palette.mode === 'dark'
+      ? 'linear-gradient(145deg, #1a2332 0%, #243447 100%)'
+      : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+    border: `1px solid ${theme.palette.mode === 'dark' ? '#2c3e50' : '#e2e8f0'}`,
   },
 }));
 
@@ -46,14 +52,20 @@ const SplitMethodCard = styled(Box)(({ theme, selected }) => ({
   padding: theme.spacing(2),
   borderRadius: theme.shape.borderRadius,
   border: `2px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-  backgroundColor: selected ? theme.palette.primary.light : theme.palette.background.paper,
+  backgroundColor: selected
+    ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.2)' : theme.palette.primary.light)
+    : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : theme.palette.background.paper),
   cursor: 'pointer',
   transition: 'all 0.3s ease',
   marginBottom: theme.spacing(2),
   '&:hover': {
-    backgroundColor: selected ? theme.palette.primary.light : theme.palette.action.hover,
+    backgroundColor: selected
+      ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.3)' : theme.palette.primary.light)
+      : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.8)' : theme.palette.action.hover),
     transform: 'translateY(-2px)',
-    boxShadow: theme.shadows[4],
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 20px rgba(30, 58, 95, 0.3)'
+      : theme.shadows[4],
   },
 }));
 
@@ -61,11 +73,13 @@ const PersonCard = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
   borderRadius: theme.shape.borderRadius,
   border: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : theme.palette.background.paper,
   marginBottom: theme.spacing(1),
   transition: 'all 0.3s ease',
   '&:hover': {
-    boxShadow: theme.shadows[2],
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 2px 10px rgba(30, 58, 95, 0.2)'
+      : theme.shadows[2],
   },
 }));
 
@@ -77,6 +91,8 @@ const SplitBillDialog = ({
   initialSplitItems = [],
   splitMethods = ['equal', 'item', 'amount', 'percentage']
 }) => {
+  const theme = useTheme();
+  const { isDarkMode } = useThemeContext();
   const [splitMethod, setSplitMethod] = useState('equal');
   const [numberOfPeople, setNumberOfPeople] = useState(2);
   const [splitItems, setSplitItems] = useState([]);
@@ -281,10 +297,29 @@ const SplitBillDialog = ({
     <StyledDialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
+          <Typography
+            variant="h6"
+            sx={{
+              background: isDarkMode
+                ? 'linear-gradient(45deg, #64b5f6, #90caf9)'
+                : 'linear-gradient(45deg, #1e3a5f, #2c5282)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             Split Bill
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#90caf9' : '#1e3a5f',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.1)' : 'rgba(30, 58, 95, 0.1)',
+              },
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>
@@ -292,11 +327,32 @@ const SplitBillDialog = ({
 
       <DialogContent>
         {/* Order Summary */}
-        <Box mb={3}>
-          <Typography variant="subtitle2" gutterBottom>
+        <Box
+          mb={3}
+          sx={{
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.1)' : 'rgba(44, 82, 130, 0.05)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.2)' : 'rgba(44, 82, 130, 0.1)'}`,
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            gutterBottom
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#90caf9' : '#1e3a5f',
+              fontWeight: 'bold',
+            }}
+          >
             Order Total: {formatCurrency(calculateSubtotal())}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#b3e5fc' : '#546e7a',
+            }}
+          >
             {order.items?.length || 0} items • {order.guest_count || 0} guests
           </Typography>
         </Box>

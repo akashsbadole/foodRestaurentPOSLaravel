@@ -17,56 +17,51 @@ import {
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
+import {
+  getTableStatusColor,
+  getTableStatusLabel,
+  getTableStatusMuiVariant
+} from '../../../lib/statusColors';
 
-const StyledCard = styled(Card)(({ theme, status }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available':
-        return theme.palette.success.main;
-      case 'occupied':
-        return theme.palette.error.main;
-      case 'reserved':
-        return theme.palette.warning.main;
-      case 'cleaning':
-        return theme.palette.info.main;
-      default:
-        return theme.palette.grey.main;
-    }
-  };
-
+const StyledCard = styled(Card)(({ theme, status, isDarkMode }) => {
+  const statusColor = getTableStatusColor(status, isDarkMode);
+  
   return {
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    border: `2px solid ${getStatusColor(status)}`,
-    backgroundColor: status === 'available' ? theme.palette.success.light : theme.palette.background.paper,
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: theme.shadows[8],
-    },
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    border: `2px solid ${statusColor}`,
+    backgroundColor: theme.palette?.background?.paper || '#ffffff',
+    backgroundImage: theme.palette?.background?.paperGradient || 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
     height: '140px',
     display: 'flex',
     flexDirection: 'column',
-    position: 'relative'
-  };
-});
-
-const TableStatusChip = styled(Chip)(({ theme, status }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available':
-        return { backgroundColor: theme.palette.success.main, color: theme.palette.success.contrastText };
-      case 'occupied':
-        return { backgroundColor: theme.palette.error.main, color: theme.palette.error.contrastText };
-      case 'reserved':
-        return { backgroundColor: theme.palette.warning.main, color: theme.palette.warning.contrastText };
-      case 'cleaning':
-        return { backgroundColor: theme.palette.info.main, color: theme.palette.info.contrastText };
-      default:
-        return { backgroundColor: theme.palette.grey.main, color: theme.palette.grey.contrastText };
+    position: 'relative',
+    borderRadius: theme.shape?.borderRadius ? theme.shape.borderRadius * 2 : 16,
+    overflow: 'hidden',
+    boxShadow: theme.shadows?.[2] || '0 4px 12px rgba(30, 58, 95, 0.1), 0 2px 6px rgba(30, 58, 95, 0.06)',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      background: statusColor,
+      transform: 'translateY(-100%)',
+      transition: 'transform 0.3s ease-in-out',
+    },
+    '&:hover': {
+      transform: 'translateY(-6px) scale(1.02)',
+      boxShadow: theme.shadows?.[6] || '0 16px 48px rgba(30, 58, 95, 0.15), 0 8px 16px rgba(30, 58, 95, 0.1)',
+      '&::before': {
+        transform: 'translateY(0)',
+      }
+    },
+    '&:active': {
+      transform: 'translateY(-2px) scale(1.01)',
     }
   };
-
-  return getStatusColor(status);
 });
 
 const Table = ({
@@ -77,6 +72,7 @@ const Table = ({
   showMenu = true,
   compact = false
 }) => {
+  const { isDarkMode } = useThemeContext();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
 
@@ -113,18 +109,7 @@ const Table = ({
   };
 
   const getStatusText = (status) => {
-    switch (status) {
-      case 'available':
-        return 'Available';
-      case 'occupied':
-        return 'Occupied';
-      case 'reserved':
-        return 'Reserved';
-      case 'cleaning':
-        return 'Cleaning';
-      default:
-        return 'Unknown';
-    }
+    return getTableStatusLabel(status);
   };
 
   const formatTime = (time) => {
@@ -142,24 +127,52 @@ const Table = ({
   return (
     <StyledCard
       status={table.status}
+      isDarkMode={isDarkMode}
       onClick={handleCardClick}
       className="table-card"
     >
       <CardContent sx={{ flex: 1, padding: compact ? 1 : 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box flex={1}>
-            <Typography variant={compact ? "body2" : "h6"} fontWeight="bold" gutterBottom>
+            <Typography
+              variant={compact ? "body2" : "h6"}
+              fontWeight="bold"
+              gutterBottom
+              sx={{
+                color: 'text.primary',
+              }}
+            >
               {table.name}
             </Typography>
             
             {!compact && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                gutterBottom
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5
+                }}
+              >
+                <PeopleIcon fontSize="small" />
                 Capacity: {table.capacity} seats
               </Typography>
             )}
 
             {table.section_name && !compact && (
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  display: 'inline-block'
+                }}
+              >
                 {table.section_name}
               </Typography>
             )}
@@ -169,7 +182,13 @@ const Table = ({
             <IconButton
               size="small"
               onClick={handleMenuClick}
-              sx={{ ml: 1 }}
+              sx={{
+                ml: 1,
+                backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+                '&:hover': {
+                  backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.2)' : 'rgba(30, 58, 95, 0.1)',
+                }
+              }}
             >
               <MoreVertIcon />
             </IconButton>
@@ -177,15 +196,24 @@ const Table = ({
         </Box>
 
         <Box display="flex" justifyContent="space-between" alignItems="center" mt={1}>
-          <TableStatusChip
-            status={table.status}
+          <Chip
+            variant={getTableStatusMuiVariant(table.status)}
             size="small"
             label={getStatusText(table.status)}
             icon={getStatusIcon(table.status)}
           />
 
           {table.status === 'occupied' && table.order_time && !compact && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5
+              }}
+            >
+              <AccessTimeIcon fontSize="small" />
               {formatTime(table.order_time)}
             </Typography>
           )}
@@ -195,6 +223,12 @@ const Table = ({
               badgeContent={table.guest_count}
               color="primary"
               max={table.capacity}
+              sx={{
+                '& .MuiBadge-badge': {
+                  backgroundColor: 'primary.main',
+                  color: 'primary.contrastText',
+                }
+              }}
             >
               <PeopleIcon fontSize="small" />
             </Badge>
@@ -202,12 +236,25 @@ const Table = ({
         </Box>
 
         {table.current_order && !compact && (
-          <Box mt={1}>
+          <Box
+            mt={1}
+            sx={{
+              p: 1,
+              borderRadius: 1,
+              backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+              border: `1px solid ${isDarkMode ? 'rgba(30, 58, 95, 0.2)' : 'rgba(30, 58, 95, 0.1)'}`,
+            }}
+          >
             <Typography variant="caption" color="text.secondary">
               Order #{table.current_order}
             </Typography>
             {table.order_total && (
-              <Typography variant="caption" display="block" color="text.secondary">
+              <Typography
+                variant="caption"
+                display="block"
+                color="primary.main"
+                fontWeight="bold"
+              >
                 Total: ${table.order_total.toFixed(2)}
               </Typography>
             )}
@@ -215,8 +262,25 @@ const Table = ({
         )}
 
         {table.reservation_time && !compact && (
-          <Box mt={1}>
-            <Typography variant="caption" color="text.secondary">
+          <Box
+            mt={1}
+            sx={{
+              p: 1,
+              borderRadius: 1,
+              backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)',
+              border: `1px solid ${isDarkMode ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)'}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="warning.main"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5
+              }}
+            >
+              <RestaurantIcon fontSize="small" />
               Reserved: {formatTime(table.reservation_time)}
             </Typography>
           </Box>
@@ -228,6 +292,13 @@ const Table = ({
         open={open}
         onClose={handleMenuClose}
         onClick={(e) => e.stopPropagation()}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'background.paper',
+            border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+            boxShadow: '0 4px 12px rgba(30, 58, 95, 0.15)',
+          }
+        }}
       >
         <MenuItem onClick={() => handleStatusChange('available')}>
           Mark as Available

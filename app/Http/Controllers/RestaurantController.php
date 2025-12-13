@@ -86,14 +86,12 @@ class RestaurantController extends Controller
 
         return Inertia::render('Restaurant/Dashboard', [
             'currentStore' => $currentStore,
-            'stats' => [
-                'todayOrders' => $todayOrders,
-                'todayRevenue' => $todayRevenue,
-                'activeOrders' => $activeOrders,
-                'occupiedTables' => $occupiedTables,
-                'availableTables' => $availableTables,
-                'todayReservations' => $todayReservations,
-                'seatedReservations' => $seatedReservations,
+            'todayStats' => [
+                'orders' => $todayOrders,
+                'revenue' => $todayRevenue,
+                'active_orders' => $activeOrders,
+                'available_tables' => $availableTables,
+                'total_tables' => $occupiedTables + $availableTables,
             ],
             'recentOrders' => $recentOrders,
             'upcomingReservations' => $upcomingReservations,

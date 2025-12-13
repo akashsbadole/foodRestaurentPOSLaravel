@@ -26,43 +26,54 @@ import {
   Timer as TimerIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useCustomTheme } from '@/Components/ThemeProvider';
+import { getOrderStatusColor } from '../../../lib/statusColors';
 
 const StyledCard = styled(Card)(({ theme, priority, status, age }) => {
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return theme.palette.error.main;
-      case 'medium': return theme.palette.warning.main;
-      case 'low': return theme.palette.success.main;
-      default: return theme.palette.grey.main;
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return theme.palette.mode === 'dark' ? '#6b7280' : '#9ca3af';
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return theme.palette.warning.light;
-      case 'preparing': return theme.palette.primary.light;
-      case 'ready': return theme.palette.success.light;
-      case 'delayed': return theme.palette.error.light;
-      default: return theme.palette.background.paper;
+      case 'pending': return theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)';
+      case 'preparing': return theme.palette.mode === 'dark' ? 'rgba(49, 130, 206, 0.1)' : 'rgba(49, 130, 206, 0.05)';
+      case 'ready': return theme.palette.mode === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)';
+      case 'delayed': return theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)';
+      default: return theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)';
     }
   };
 
   const getAgeColor = (age) => {
-    if (age > 30) return theme.palette.error.main; // Over 30 minutes
-    if (age > 20) return theme.palette.warning.main; // Over 20 minutes
-    if (age > 15) return theme.palette.info.main; // Over 15 minutes
-    return theme.palette.success.main; // Under 15 minutes
+    if (age > 30) return '#ef4444'; // Over 30 minutes
+    if (age > 20) return '#f59e0b'; // Over 20 minutes
+    if (age > 15) return '#3182ce'; // Over 15 minutes
+    return '#10b981'; // Under 15 minutes
   };
 
   return {
-    borderLeft: `4px solid ${getPriorityColor(priority)}`,
+    background: theme.palette.mode === 'dark'
+      ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+      : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
     backgroundColor: getStatusColor(status),
+    borderLeft: `4px solid ${getPriorityColor(priority)}`,
     transition: 'all 0.3s ease',
     position: 'relative',
     overflow: 'visible',
+    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+      : '0 4px 20px rgba(30, 58, 95, 0.15)',
     '&:hover': {
       transform: 'translateY(-2px)',
-      boxShadow: theme.shadows[8],
+      boxShadow: theme.palette.mode === 'dark'
+        ? '0 8px 30px rgba(0, 0, 0, 0.4)'
+        : '0 8px 30px rgba(30, 58, 95, 0.2)',
     },
     '&::before': {
       content: '""',
@@ -82,17 +93,17 @@ const StyledCard = styled(Card)(({ theme, priority, status, age }) => {
 const PriorityBadge = styled(Badge)(({ theme, priority }) => {
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return theme.palette.error.main;
-      case 'medium': return theme.palette.warning.main;
-      case 'low': return theme.palette.success.main;
-      default: return theme.palette.grey.main;
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return theme.palette.mode === 'dark' ? '#6b7280' : '#9ca3af';
     }
   };
 
   return {
     '& .MuiBadge-badge': {
       backgroundColor: getPriorityColor(priority),
-      color: theme.palette.getContrastText(getPriorityColor(priority)),
+      color: '#ffffff',
     },
   };
 });
@@ -108,6 +119,7 @@ const OrderTicket = ({
   autoRefresh = true,
   refreshInterval = 30000 // 30 seconds
 }) => {
+  const { isDarkMode } = useCustomTheme();
   const [orderAge, setOrderAge] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -120,7 +132,7 @@ const OrderTicket = ({
       const orderTime = new Date(order.created_at);
       const age = Math.floor((now - orderTime) / 60000); // minutes
       const elapsed = order.start_time ? Math.floor((now - new Date(order.start_time)) / 60000) : 0;
-      
+
       setOrderAge(age);
       setElapsedTime(elapsed);
     }, refreshInterval);
@@ -130,7 +142,7 @@ const OrderTicket = ({
     const orderTime = new Date(order.created_at);
     const age = Math.floor((now - orderTime) / 60000);
     const elapsed = order.start_time ? Math.floor((now - new Date(order.start_time)) / 60000) : 0;
-    
+
     setOrderAge(age);
     setElapsedTime(elapsed);
 
@@ -152,10 +164,10 @@ const OrderTicket = ({
   const formatTime = (time) => {
     if (!time) return '';
     const date = new Date(time);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: false 
+      hour12: false
     });
   };
 
@@ -199,35 +211,57 @@ const OrderTicket = ({
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
           <Box flex={1}>
             <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-              <Typography variant={compact ? "h6" : "h5"} fontWeight="bold">
+              <Typography
+                variant={compact ? "h6" : "h5"}
+                fontWeight="bold"
+                sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f' }}
+              >
                 #{order.order_number || order.id}
               </Typography>
-              
+
               <Chip
                 label={order.status?.toUpperCase()}
-                color={getStatusColor(order.status)}
                 size="small"
+                sx={{
+                  backgroundColor: getOrderStatusColor(order.status, isDarkMode),
+                  color: '#ffffff',
+                  fontWeight: 'bold',
+                }}
               />
-              
+
               {isDelayed && (
                 <Chip
                   label="DELAYED"
-                  color="error"
                   size="small"
                   icon={<FireIcon />}
+                  sx={{
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                    fontWeight: 'bold',
+                  }}
                 />
               )}
             </Box>
 
             <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)' }}
+              >
                 {formatTime(order.created_at)}
               </Typography>
-              
+
               {showTimer && (
                 <Box display="flex" alignItems="center" gap={0.5}>
-                  <AccessTimeIcon fontSize="small" />
-                  <Typography variant="body2" color={isDelayed ? 'error' : 'text.secondary'}>
+                  <AccessTimeIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: isDelayed
+                        ? '#ef4444'
+                        : isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)'
+                    }}
+                  >
                     {formatDuration(orderAge)}
                   </Typography>
                 </Box>
@@ -247,8 +281,11 @@ const OrderTicket = ({
         <Box display="flex" alignItems="center" gap={2} mb={1}>
           {order.table_name && (
             <Box display="flex" alignItems="center" gap={0.5}>
-              <RestaurantIcon fontSize="small" />
-              <Typography variant="body2">
+              <RestaurantIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+              <Typography
+                variant="body2"
+                sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+              >
                 Table: {order.table_name}
               </Typography>
             </Box>
@@ -256,8 +293,11 @@ const OrderTicket = ({
 
           {order.guest_count && (
             <Box display="flex" alignItems="center" gap={0.5}>
-              <PeopleIcon fontSize="small" />
-              <Typography variant="body2">
+              <PeopleIcon fontSize="small" sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }} />
+              <Typography
+                variant="body2"
+                sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+              >
                 {order.guest_count} guests
               </Typography>
             </Box>
@@ -268,13 +308,30 @@ const OrderTicket = ({
               label={order.order_type?.replace('-', ' ').toUpperCase()}
               size="small"
               variant="outlined"
+              sx={{
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+                color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+              }}
             />
           )}
         </Box>
 
         {/* Special Instructions */}
         {order.special_instructions && !compact && (
-          <Alert severity="info" sx={{ mb: 1 }}>
+          <Alert
+            severity="info"
+            sx={{
+              mb: 1,
+              backgroundColor: isDarkMode ? 'rgba(49, 130, 206, 0.1)' : 'rgba(49, 130, 206, 0.05)',
+              border: `1px solid ${isDarkMode ? 'rgba(49, 130, 206, 0.3)' : 'rgba(49, 130, 206, 0.2)'}`,
+              '& .MuiAlert-message': {
+                color: isDarkMode ? '#ffffff' : '#1e3a5f',
+              },
+              '& .MuiAlert-icon': {
+                color: isDarkMode ? '#90caf9' : '#3182ce',
+              },
+            }}
+          >
             <Typography variant="body2">
               {order.special_instructions}
             </Typography>
@@ -284,26 +341,39 @@ const OrderTicket = ({
         {/* Order Items */}
         {showItems && order.items && order.items.length > 0 && (
           <Box mb={1}>
-            <Typography variant="subtitle2" gutterBottom>
+            <Typography
+              variant="subtitle2"
+              gutterBottom
+              sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+            >
               Items ({order.items.length})
             </Typography>
-            
+
             {compact ? (
               <Box>
                 {order.items.slice(0, 3).map((item, index) => (
                   <Box key={index} display="flex" justifyContent="space-between" py={0.5}>
-                    <Typography variant="body2">
+                    <Typography
+                      variant="body2"
+                      sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)' }}
+                    >
                       {item.quantity}x {item.name}
                     </Typography>
                     {item.modifiers && item.modifiers.length > 0 && (
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography
+                        variant="caption"
+                        sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+                      >
                         +{item.modifiers.length} mods
                       </Typography>
                     )}
                   </Box>
                 ))}
                 {order.items.length > 3 && (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+                  >
                     +{order.items.length - 3} more items
                   </Typography>
                 )}
@@ -314,14 +384,22 @@ const OrderTicket = ({
                   <Box key={index} mb={1}>
                     <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                       <Box flex={1}>
-                        <Typography variant="body2" fontWeight="medium">
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.9)' }}
+                        >
                           {item.quantity}x {item.name}
                         </Typography>
-                        
+
                         {item.modifiers && item.modifiers.length > 0 && (
                           <Box ml={2} mt={0.5}>
                             {item.modifiers.map((modifier, modIndex) => (
-                              <Typography key={modIndex} variant="caption" color="text.secondary">
+                              <Typography
+                                key={modIndex}
+                                variant="caption"
+                                sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' }}
+                              >
                                 • {modifier.name} {modifier.quantity > 1 && `x${modifier.quantity}`}
                               </Typography>
                             ))}
@@ -329,7 +407,13 @@ const OrderTicket = ({
                         )}
 
                         {item.notes && (
-                          <Typography variant="caption" color="info.main" sx={{ fontStyle: 'italic' }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontStyle: 'italic',
+                              color: isDarkMode ? '#90caf9' : '#3182ce',
+                            }}
+                          >
                             Note: {item.notes}
                           </Typography>
                         )}
@@ -339,8 +423,11 @@ const OrderTicket = ({
                         <Chip
                           label={item.status}
                           size="small"
-                          color={getStatusColor(item.status)}
                           variant="outlined"
+                          sx={{
+                            borderColor: getOrderStatusColor(item.status, isDarkMode),
+                            color: getOrderStatusColor(item.status, isDarkMode),
+                          }}
                         />
                       )}
                     </Box>
@@ -354,13 +441,24 @@ const OrderTicket = ({
         {/* Progress Bar for preparing items */}
         {order.status === 'preparing' && !compact && (
           <Box mb={1}>
-            <Typography variant="caption" color="text.secondary" gutterBottom>
+            <Typography
+              variant="caption"
+              gutterBottom
+              sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)' }}
+            >
               Preparing Progress
             </Typography>
             <LinearProgress
               variant="determinate"
               value={order.preparation_progress || 0}
-              sx={{ height: 6, borderRadius: 3 }}
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                '& .MuiLinearProgress-bar': {
+                  background: 'linear-gradient(90deg, #1e3a5f 0%, #3182ce 100%)',
+                },
+              }}
             />
           </Box>
         )}
@@ -370,10 +468,20 @@ const OrderTicket = ({
           {order.status === 'pending' && (
             <Button
               variant="contained"
-              color="primary"
               size="small"
               onClick={() => handleStatusChange('preparing')}
               startIcon={<RestaurantIcon />}
+              sx={{
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)'
+                  : 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+                color: '#ffffff',
+                '&:hover': {
+                  background: isDarkMode
+                    ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+                    : 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)',
+                },
+              }}
             >
               Start Preparing
             </Button>
@@ -382,10 +490,16 @@ const OrderTicket = ({
           {order.status === 'preparing' && (
             <Button
               variant="contained"
-              color="success"
               size="small"
               onClick={() => handleStatusChange('ready')}
               startIcon={<CheckCircleIcon />}
+              sx={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                },
+              }}
             >
               Mark Ready
             </Button>
@@ -394,10 +508,16 @@ const OrderTicket = ({
           {order.status === 'ready' && (
             <Button
               variant="contained"
-              color="info"
               size="small"
               onClick={() => handleStatusChange('served')}
               startIcon={<CheckCircleIcon />}
+              sx={{
+                background: 'linear-gradient(135deg, #3182ce 0%, #2563eb 100%)',
+                color: '#ffffff',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                },
+              }}
             >
               Mark Served
             </Button>
@@ -405,10 +525,18 @@ const OrderTicket = ({
 
           <Button
             variant="outlined"
-            color="error"
             size="small"
             onClick={() => handleStatusChange('cancelled')}
             startIcon={<CancelIcon />}
+            sx={{
+              borderColor: '#ef4444',
+              color: '#ef4444',
+              '&:hover': {
+                borderColor: '#dc2626',
+                color: '#dc2626',
+                backgroundColor: 'rgba(239, 68, 68, 0.04)',
+              },
+            }}
           >
             Cancel
           </Button>

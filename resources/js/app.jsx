@@ -7,6 +7,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { PurchaseProvider } from './Context/PurchaseContext';
 import { SharedProvider } from './Context/SharedContext';
 import { useCurrencyStore } from './stores/currencyStore';
+import ThemeProvider from './Components/ThemeProvider';
 
 const appName = import.meta.env.VITE_APP_NAME || 'InfoShop';
 
@@ -56,11 +57,13 @@ createInertiaApp({
         console.log('📦 Server Currency Settings:', currencySettingsFromServer);
 
         root.render(
-            <PurchaseProvider>
-                <SharedProvider>
-                    <App {...props} />
-                </SharedProvider>
-            </PurchaseProvider>
+            <ThemeProvider>
+                <PurchaseProvider>
+                    <SharedProvider>
+                        <App {...props} />
+                    </SharedProvider>
+                </PurchaseProvider>
+            </ThemeProvider>
         );
     },
     // progress: {

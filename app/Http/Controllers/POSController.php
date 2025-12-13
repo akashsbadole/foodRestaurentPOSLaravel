@@ -736,7 +736,7 @@ class POSController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return Inertia::render('RestaurantPOS/RestaurantPOS', [
+        return Inertia::render('RestaurantPOS/Index', [
             'products' => $products,
             'urlImage' => url('/storage/'),
             'customers' => $contacts,

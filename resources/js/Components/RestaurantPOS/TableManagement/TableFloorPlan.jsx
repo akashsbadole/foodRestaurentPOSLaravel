@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -10,7 +10,20 @@ import {
   Fab,
   Tooltip,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  SwipeableDrawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Switch,
+  FormControlLabel,
+  Slider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
@@ -20,26 +33,45 @@ import {
   Refresh as RefreshIcon,
   Edit as EditIcon,
   GridOn as GridOnIcon,
-  GridOff as GridOffIcon
+  GridOff as GridOffIcon,
+  ViewModule as ViewModuleIcon,
+  ViewList as ViewListIcon,
+  ViewComfy as ViewComfyIcon,
+  TouchApp as TouchAppIcon,
+  PanTool as PanToolIcon,
+  FilterList as FilterIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
 import TableSection from './TableSection';
 import Table from './Table';
 
-const FloorPlanContainer = styled(Paper)(({ theme }) => ({
+const FloorPlanContainer = styled(Paper)(({ theme, isMobile, isTablet, isFullscreen }) => ({
   position: 'relative',
   overflow: 'hidden',
   backgroundColor: theme.palette.background.default,
-  minHeight: '600px',
-  transition: 'all 0.3s ease',
+  backgroundImage: theme.palette.background.defaultGradient,
+  minHeight: isMobile ? '400px' : '600px',
+  height: isFullscreen ? '100vh' : 'auto',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: isFullscreen ? 0 : theme.shape.borderRadius * 2,
+  touchAction: 'manipulation', // Improve touch performance
+  boxShadow: theme.shadows?.[2] || '0 4px 12px rgba(30, 58, 95, 0.1), 0 2px 6px rgba(30, 58, 95, 0.06)',
+  '&:hover': {
+    boxShadow: theme.shadows?.[4] || '0 8px 24px rgba(30, 58, 95, 0.12), 0 4px 8px rgba(30, 58, 95, 0.08)',
+  }
 }));
 
-const FloorPlanCanvas = styled(Box)(({ theme, scale, showGrid }) => ({
+const FloorPlanCanvas = styled(Box)(({ theme, scale, showGrid, isDragging }) => ({
   transform: `scale(${scale})`,
   transformOrigin: 'top left',
-  transition: 'transform 0.3s ease',
+  transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   position: 'relative',
   minHeight: '600px',
+  cursor: isDragging ? 'grabbing' : 'grab',
+  userSelect: 'none', // Prevent text selection during drag
+  touchAction: 'none', // Allow touch manipulation
   backgroundImage: showGrid
     ? `repeating-linear-gradient(
         0deg,
@@ -57,24 +89,77 @@ const FloorPlanCanvas = styled(Box)(({ theme, scale, showGrid }) => ({
       )`
     : 'none',
   backgroundSize: '40px 40px',
-  padding: theme.spacing(2),
+  padding: theme.spacing(3),
+  borderRadius: theme.shape?.borderRadius || 8,
 }));
 
-const ZoomControls = styled(Box)(({ theme }) => ({
+const ZoomControls = styled(Box)(({ theme, isMobile }) => ({
   position: 'absolute',
-  top: theme.spacing(2),
-  right: theme.spacing(2),
+  top: theme.spacing?.(2) || 8,
+  right: theme.spacing?.(2) || 8,
   display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(1),
+  flexDirection: isMobile ? 'row' : 'column',
+  gap: theme.spacing?.(1) || 4,
   zIndex: 1000,
+  '& .MuiFab-root': {
+    background: theme.palette?.mode === 'dark'
+      ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+      : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+    color: theme.palette?.primary?.main || '#1976d2',
+    boxShadow: '0 2px 8px rgba(30, 58, 95, 0.15)',
+    border: `1px solid ${theme.palette?.mode === 'dark' ? '#334155' : '#e2e8f0'}`,
+    width: isMobile ? 40 : 48,
+    height: isMobile ? 40 : 48,
+    '&:hover': {
+      background: theme.palette?.mode === 'dark'
+        ? 'linear-gradient(135deg, #334155 0%, #475569 100%)'
+        : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+      boxShadow: '0 4px 12px rgba(30, 58, 95, 0.25)',
+    }
+  }
 }));
 
-const TablePosition = styled(Box)(({ theme, x, y }) => ({
+const TablePosition = styled(Box)(({ theme, x, y, isDragging, isMobile }) => ({
   position: 'absolute',
   left: `${x}px`,
   top: `${y}px`,
   transform: 'translate(-50%, -50%)',
+  cursor: isDragging ? 'grabbing' : 'grab',
+  touchAction: 'manipulation',
+  '&:hover': {
+    transform: 'translate(-50%, -50%) scale(1.05)',
+    zIndex: 10,
+  },
+  transition: isDragging ? 'none' : 'transform 0.2s ease',
+}));
+
+const TouchIndicator = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: 60,
+  height: 60,
+  borderRadius: '50%',
+  backgroundColor: 'rgba(49, 130, 206, 0.2)',
+  border: '2px solid #3182ce',
+  pointerEvents: 'none',
+  opacity: 0,
+  animation: 'pulse 1.5s infinite',
+  '@keyframes pulse': {
+    '0%': {
+      transform: 'translate(-50%, -50%) scale(0.8)',
+      opacity: 0.8,
+    },
+    '50%': {
+      transform: 'translate(-50%, -50%) scale(1.2)',
+      opacity: 0.4,
+    },
+    '100%': {
+      transform: 'translate(-50%, -50%) scale(0.8)',
+      opacity: 0.8,
+    },
+  },
 }));
 
 const TableFloorPlan = ({
@@ -88,13 +173,25 @@ const TableFloorPlan = ({
   onEditLayout,
   viewMode = 'sections', // 'sections', 'grid', 'list'
   showControls = true,
-  compact = false
+  compact = false,
+  isTablet = false,
+  isLandscape = false
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { isDarkMode } = useThemeContext();
+  // Using Tailwind breakpoint values for consistency
+  const isMobile = useMediaQuery('(max-width: 767px)'); // Tailwind 'md' breakpoint
+  const canvasRef = useRef(null);
   const [scale, setScale] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+  const [touchEnabled, setTouchEnabled] = useState(true);
+  const [autoZoom, setAutoZoom] = useState(false);
+  const [tableSize, setTableSize] = useState(isMobile ? 'small' : 'medium');
 
   // Group tables by section
   const tablesBySection = useMemo(() => {
@@ -109,6 +206,99 @@ const TableFloorPlan = ({
     return tables.filter(table => !table.section_id);
   }, [tables]);
 
+  // Auto-zoom to fit content
+  useEffect(() => {
+    if (!autoZoom || !canvasRef.current) return;
+    
+    const container = canvasRef.current.parentElement;
+    const canvas = canvasRef.current;
+    
+    if (container && canvas) {
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const canvasWidth = canvas.scrollWidth;
+      const canvasHeight = canvas.scrollHeight;
+      
+      const scaleX = containerWidth / canvasWidth;
+      const scaleY = containerHeight / canvasHeight;
+      const newScale = Math.min(scaleX, scaleY, 1.5); // Max 1.5x zoom
+      
+      setScale(newScale);
+    }
+  }, [autoZoom, tables, sections]);
+
+  // Touch gesture handlers
+  const handleTouchStart = (e) => {
+    if (!touchEnabled) return;
+    
+    const touch = e.touches[0];
+    setDragStart({
+      x: touch.clientX - canvasOffset.x,
+      y: touch.clientY - canvasOffset.y
+    });
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || !touchEnabled) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const newOffset = {
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    };
+    
+    setCanvasOffset(newOffset);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  // Mouse drag handlers for desktop
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.MuiButtonBase-root') || e.target.closest('.MuiIconButton-root')) return;
+    
+    setDragStart({
+      x: e.clientX - canvasOffset.x,
+      y: e.clientY - canvasOffset.y
+    });
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    e.preventDefault();
+    const newOffset = {
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    };
+    
+    setCanvasOffset(newOffset);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Global mouse event listeners
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const handleGlobalMouseMove = (e) => handleMouseMove(e);
+    const handleGlobalMouseUp = () => handleMouseUp();
+    
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, dragStart, canvasOffset]);
+
   const handleZoomIn = () => {
     setScale(prevScale => Math.min(prevScale + 0.1, 2));
   };
@@ -119,10 +309,16 @@ const TableFloorPlan = ({
 
   const handleResetZoom = () => {
     setScale(1);
+    setCanvasOffset({ x: 0, y: 0 });
   };
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
+    if (!isFullscreen) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
   };
 
   const toggleGrid = () => {
@@ -174,6 +370,7 @@ const TableFloorPlan = ({
                   onStatusChange={onTableStatusChange}
                   onEdit={onTableEdit}
                   compact={compact}
+                  size={tableSize}
                 />
               </Grid>
             ))}
@@ -226,6 +423,7 @@ const TableFloorPlan = ({
                 onSectionEdit={onSectionEdit}
                 onAddTable={onAddTable}
                 compact={compact}
+                size={tableSize}
               />
             ))}
             {unassignedTables.length > 0 && (
@@ -237,6 +435,7 @@ const TableFloorPlan = ({
                 onTableEdit={onTableEdit}
                 onAddTable={onAddTable}
                 compact={compact}
+                size={tableSize}
               />
             )}
           </Box>
@@ -253,21 +452,35 @@ const TableFloorPlan = ({
         left: isFullscreen ? 0 : 'auto',
         width: isFullscreen ? '100vw' : 'auto',
         height: isFullscreen ? '100vh' : 'auto',
-        zIndex: isFullscreen ? theme.zIndex.modal : 'auto',
+        zIndex: isFullscreen ? theme.zIndex?.modal || 1300 : 'auto',
       }}
     >
       {/* Header with stats */}
       <Box
         sx={{
-          p: 2,
-          borderBottom: 1,
-          borderColor: 'divider',
-          backgroundColor: theme.palette.background.paper,
+          p: { xs: 1, sm: 2 },
+          borderBottom: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+          backgroundColor: 'background.paper',
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+          boxShadow: '0 2px 8px rgba(30, 58, 95, 0.15)',
         }}
       >
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={6}>
-            <Typography variant="h5" fontWeight="bold">
+            <Typography
+              variant={{ xs: 'h6', sm: 'h5' }}
+              fontWeight="bold"
+              sx={{
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #60a5fa 0%, #3182ce 100%)'
+                  : 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}
+            >
               Restaurant Floor Plan
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -280,22 +493,49 @@ const TableFloorPlan = ({
                 variant={viewMode === 'sections' ? 'contained' : 'outlined'}
                 size="small"
                 onClick={() => {}}
+                sx={{
+                  borderColor: 'primary.main',
+                  color: viewMode === 'sections' ? 'primary.contrastText' : 'primary.main',
+                  backgroundColor: viewMode === 'sections' ? 'primary.main' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: viewMode === 'sections' ? 'primary.dark' : 'rgba(30, 58, 95, 0.1)',
+                  }
+                }}
               >
-                Sections
+                <ViewModuleIcon sx={{ mr: 0.5 }} />
+                {isMobile ? '' : 'Sections'}
               </Button>
               <Button
                 variant={viewMode === 'grid' ? 'contained' : 'outlined'}
                 size="small"
                 onClick={() => {}}
+                sx={{
+                  borderColor: 'primary.main',
+                  color: viewMode === 'grid' ? 'primary.contrastText' : 'primary.main',
+                  backgroundColor: viewMode === 'grid' ? 'primary.main' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: viewMode === 'grid' ? 'primary.dark' : 'rgba(30, 58, 95, 0.1)',
+                  }
+                }}
               >
-                Grid
+                <GridOnIcon sx={{ mr: 0.5 }} />
+                {isMobile ? '' : 'Grid'}
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'contained' : 'outlined'}
                 size="small"
                 onClick={() => {}}
+                sx={{
+                  borderColor: 'primary.main',
+                  color: viewMode === 'list' ? 'primary.contrastText' : 'primary.main',
+                  backgroundColor: viewMode === 'list' ? 'primary.main' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: viewMode === 'list' ? 'primary.dark' : 'rgba(30, 58, 95, 0.1)',
+                  }
+                }}
               >
-                List
+                <ViewListIcon sx={{ mr: 0.5 }} />
+                {isMobile ? '' : 'List'}
               </Button>
             </Box>
           </Grid>
@@ -304,8 +544,16 @@ const TableFloorPlan = ({
         {/* Quick stats */}
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Typography variant="h6" color="success.main">
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)',
+                border: `1px solid ${isDarkMode ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)'}`,
+              }}
+            >
+              <Typography variant="h6" color="success.main" fontWeight="bold">
                 {stats.occupancyRate}%
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -314,8 +562,16 @@ const TableFloorPlan = ({
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Typography variant="h6" color="primary.main">
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+                border: `1px solid ${isDarkMode ? 'rgba(30, 58, 95, 0.3)' : 'rgba(30, 58, 95, 0.2)'}`,
+              }}
+            >
+              <Typography variant="h6" color="primary.main" fontWeight="bold">
                 {stats.occupiedSeats}/{stats.totalCapacity}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -324,8 +580,16 @@ const TableFloorPlan = ({
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Typography variant="h6" color="warning.main">
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)',
+                border: `1px solid ${isDarkMode ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)'}`,
+              }}
+            >
+              <Typography variant="h6" color="warning.main" fontWeight="bold">
                 {stats.reservedTables}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -334,8 +598,16 @@ const TableFloorPlan = ({
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Typography variant="h6" color="info.main">
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                border: `1px solid ${isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+              }}
+            >
+              <Typography variant="h6" color="info.main" fontWeight="bold">
                 {stats.totalTables}
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -374,6 +646,11 @@ const TableFloorPlan = ({
               {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </Fab>
           </Tooltip>
+          <Tooltip title="Settings">
+            <Fab size="small" onClick={() => setSettingsDrawerOpen(true)} color="secondary">
+              <FilterIcon />
+            </Fab>
+          </Tooltip>
           {onEditLayout && (
             <Tooltip title="Edit Layout">
               <Fab size="small" onClick={onEditLayout} color="secondary">
@@ -384,10 +661,35 @@ const TableFloorPlan = ({
         </ZoomControls>
       )}
 
+      {/* Touch indicator for mobile */}
+      {isMobile && touchEnabled && (
+        <TouchIndicator />
+      )}
+
       {/* Floor plan canvas */}
-      <FloorPlanCanvas scale={scale} showGrid={showGrid}>
-        {renderView()}
-      </FloorPlanCanvas>
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          touchAction: touchEnabled ? 'pan-x pan-y pinch-zoom' : 'auto',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+      >
+        <FloorPlanCanvas
+          ref={canvasRef}
+          scale={scale}
+          showGrid={showGrid}
+          isDragging={isDragging}
+          style={{
+            transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${scale})`,
+          }}
+        >
+          {renderView()}
+        </FloorPlanCanvas>
+      </Box>
 
       {/* Exit fullscreen button */}
       {isFullscreen && (
@@ -402,11 +704,118 @@ const TableFloorPlan = ({
             variant="contained"
             startIcon={<FullscreenExitIcon />}
             onClick={toggleFullscreen}
+            sx={{
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)'
+                : 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+              '&:hover': {
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+                  : 'linear-gradient(135deg, #2c5282 0%, #1e3a5f 100%)',
+              }
+            }}
           >
             Exit Fullscreen
           </Button>
         </Box>
       )}
+
+      {/* Settings Drawer */}
+      <SwipeableDrawer
+        anchor="right"
+        open={settingsDrawerOpen}
+        onClose={() => setSettingsDrawerOpen(false)}
+        onOpen={() => setSettingsDrawerOpen(true)}
+        PaperProps={{
+          sx: {
+            width: 300,
+            backgroundColor: 'background.paper',
+            borderLeft: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+          }
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Floor Plan Settings
+          </Typography>
+          
+          <List>
+            <ListItem>
+              <ListItemIcon>
+                <TouchAppIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="Touch Gestures"
+                secondary="Enable touch interactions"
+              />
+              <Switch
+                checked={touchEnabled}
+                onChange={(e) => setTouchEnabled(e.target.checked)}
+              />
+            </ListItem>
+            
+            <ListItem>
+              <ListItemIcon>
+                <ZoomInIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="Auto Zoom"
+                secondary="Fit content to screen"
+              />
+              <Switch
+                checked={autoZoom}
+                onChange={(e) => setAutoZoom(e.target.checked)}
+              />
+            </ListItem>
+            
+            <Divider />
+            
+            <ListItem>
+              <ListItemText
+                primary="Table Size"
+                secondary="Adjust table display size"
+              />
+            </ListItem>
+            <ListItem sx={{ pt: 0 }}>
+              <FormControl fullWidth>
+                <InputLabel>Size</InputLabel>
+                <Select
+                  value={tableSize}
+                  label="Size"
+                  onChange={(e) => setTableSize(e.target.value)}
+                >
+                  <MenuItem value="small">Small</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="large">Large</MenuItem>
+                </Select>
+              </FormControl>
+            </ListItem>
+            
+            <ListItem>
+              <ListItemText
+                primary="Zoom Level"
+                secondary={`${Math.round(scale * 100)}%`}
+              />
+            </ListItem>
+            <ListItem sx={{ pt: 0 }}>
+              <Slider
+                value={scale}
+                min={0.5}
+                max={2}
+                step={0.1}
+                onChange={(e, value) => setScale(value)}
+                valueLabelDisplay="auto"
+                marks={[
+                  { value: 0.5, label: '50%' },
+                  { value: 1, label: '100%' },
+                  { value: 1.5, label: '150%' },
+                  { value: 2, label: '200%' },
+                ]}
+              />
+            </ListItem>
+          </List>
+        </Box>
+      </SwipeableDrawer>
     </FloorPlanContainer>
   );
 };

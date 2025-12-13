@@ -32,26 +32,37 @@ import {
   OutdoorGrill as OutdoorGrillIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useCustomTheme } from '@/Components/ThemeProvider';
+import { getOrderStatusColor } from '../../../lib/statusColors';
 import OrderTicket from './OrderTicket';
 
 const StationCard = styled(Card)(({ theme, stationType }) => {
   const getStationColor = (type) => {
     switch (type) {
-      case 'hot_kitchen': return theme.palette.error.light;
-      case 'cold_kitchen': return theme.palette.info.light;
-      case 'bar': return theme.palette.primary.light;
-      case 'dessert': return theme.palette.secondary.light;
-      case 'grill': return theme.palette.warning.light;
-      default: return theme.palette.background.paper;
+      case 'hot_kitchen': return theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)';
+      case 'cold_kitchen': return theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)';
+      case 'bar': return theme.palette.mode === 'dark' ? 'rgba(49, 130, 206, 0.1)' : 'rgba(49, 130, 206, 0.05)';
+      case 'dessert': return theme.palette.mode === 'dark' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(168, 85, 247, 0.05)';
+      case 'grill': return theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)';
+      default: return theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.5)' : 'rgba(30, 58, 95, 0.05)';
     }
   };
 
   return {
+    background: theme.palette.mode === 'dark'
+      ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+      : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
     backgroundColor: getStationColor(stationType),
     transition: 'all 0.3s ease',
+    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+      : '0 4px 20px rgba(30, 58, 95, 0.15)',
     '&:hover': {
       transform: 'translateY(-2px)',
-      boxShadow: theme.shadows[6],
+      boxShadow: theme.palette.mode === 'dark'
+        ? '0 8px 30px rgba(0, 0, 0, 0.4)'
+        : '0 8px 30px rgba(30, 58, 95, 0.2)',
     },
   };
 });
@@ -63,7 +74,11 @@ const StationHeader = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2),
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper,
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+    : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+  boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
 }));
 
 const TabPanel = ({ children, value, index, ...other }) => (
@@ -92,7 +107,9 @@ const KitchenStation = ({
   maxOrdersPerRow = 3
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { isDarkMode } = useCustomTheme();
+  // Using Tailwind breakpoint values for consistency
+  const isMobile = useMediaQuery('(max-width: 767px)'); // Tailwind 'md' breakpoint
   const [tabValue, setTabValue] = useState(0);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -141,7 +158,7 @@ const KitchenStation = ({
   // Get station statistics
   const stationStats = useMemo(() => {
     const stationOrders = orders.filter(order => order.station_id === station.id);
-    
+
     return {
       total: stationOrders.length,
       pending: stationOrders.filter(order => order.status === 'pending').length,
@@ -196,8 +213,8 @@ const KitchenStation = ({
   };
 
   const formatTime = (time) => {
-    return new Date(time).toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return new Date(time).toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     });
@@ -245,30 +262,114 @@ const KitchenStation = ({
         {/* Station Statistics */}
         <Grid container spacing={1} mb={2}>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stationStats.pending} color="warning">
-                <Typography variant="h6">Pending</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stationStats.pending}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#f59e0b',
+                    color: '#ffffff',
+                  },
+                }}
+              >
+                <Typography variant="h6" sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}>
+                  Pending
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stationStats.preparing} color="primary">
-                <Typography variant="h6">Preparing</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stationStats.preparing}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#3182ce',
+                    color: '#ffffff',
+                  },
+                }}
+              >
+                <Typography variant="h6" sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}>
+                  Preparing
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stationStats.ready} color="success">
-                <Typography variant="h6">Ready</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stationStats.ready}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                  },
+                }}
+              >
+                <Typography variant="h6" sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}>
+                  Ready
+                </Typography>
               </Badge>
             </Box>
           </Grid>
           <Grid item xs={6} sm={3}>
-            <Box textAlign="center">
-              <Badge badgeContent={stationStats.delayed} color="error">
-                <Typography variant="h6">Delayed</Typography>
+            <Box
+              textAlign="center"
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                background: isDarkMode
+                  ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+                border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+                boxShadow: '0 2px 8px rgba(30, 58, 95, 0.1)',
+              }}
+            >
+              <Badge
+                badgeContent={stationStats.delayed}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                  },
+                }}
+              >
+                <Typography variant="h6" sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}>
+                  Delayed
+                </Typography>
               </Badge>
             </Box>
           </Grid>
@@ -291,40 +392,40 @@ const KitchenStation = ({
         {showFilters && (
           <Box mb={2}>
             <Tabs value={tabValue} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-              <Tab 
+              <Tab
                 label={
                   <Badge badgeContent={stationStats.total} color="primary">
                     All ({stationStats.total})
                   </Badge>
-                } 
+                }
               />
-              <Tab 
+              <Tab
                 label={
                   <Badge badgeContent={stationStats.pending} color="warning">
                     Pending ({stationStats.pending})
                   </Badge>
-                } 
+                }
               />
-              <Tab 
+              <Tab
                 label={
                   <Badge badgeContent={stationStats.preparing} color="primary">
                     Preparing ({stationStats.preparing})
                   </Badge>
-                } 
+                }
               />
-              <Tab 
+              <Tab
                 label={
                   <Badge badgeContent={stationStats.ready} color="success">
                     Ready ({stationStats.ready})
                   </Badge>
-                } 
+                }
               />
-              <Tab 
+              <Tab
                 label={
                   <Badge badgeContent={stationStats.delayed} color="error">
                     Delayed ({stationStats.delayed})
                   </Badge>
-                } 
+                }
               />
             </Tabs>
           </Box>
@@ -334,11 +435,11 @@ const KitchenStation = ({
         <TabPanel value={tabValue} index={0}>
           <Grid container spacing={2}>
             {filteredOrders.map((order) => (
-              <Grid 
-                key={order.id} 
-                item 
-                xs={12} 
-                sm={compact ? 12 : 6} 
+              <Grid
+                key={order.id}
+                item
+                xs={12}
+                sm={compact ? 12 : 6}
                 md={compact ? 6 : 4}
                 lg={compact ? 4 : 3}
                 xl={compact ? 3 : 2}
@@ -369,11 +470,11 @@ const KitchenStation = ({
         <TabPanel value={tabValue} index={1}>
           <Grid container spacing={2}>
             {filteredOrders.filter(order => order.status === 'pending').map((order) => (
-              <Grid 
-                key={order.id} 
-                item 
-                xs={12} 
-                sm={compact ? 12 : 6} 
+              <Grid
+                key={order.id}
+                item
+                xs={12}
+                sm={compact ? 12 : 6}
                 md={compact ? 6 : 4}
                 lg={compact ? 4 : 3}
                 xl={compact ? 3 : 2}
@@ -393,11 +494,11 @@ const KitchenStation = ({
         <TabPanel value={tabValue} index={2}>
           <Grid container spacing={2}>
             {filteredOrders.filter(order => order.status === 'preparing').map((order) => (
-              <Grid 
-                key={order.id} 
-                item 
-                xs={12} 
-                sm={compact ? 12 : 6} 
+              <Grid
+                key={order.id}
+                item
+                xs={12}
+                sm={compact ? 12 : 6}
                 md={compact ? 6 : 4}
                 lg={compact ? 4 : 3}
                 xl={compact ? 3 : 2}
@@ -417,11 +518,11 @@ const KitchenStation = ({
         <TabPanel value={tabValue} index={3}>
           <Grid container spacing={2}>
             {filteredOrders.filter(order => order.status === 'ready').map((order) => (
-              <Grid 
-                key={order.id} 
-                item 
-                xs={12} 
-                sm={compact ? 12 : 6} 
+              <Grid
+                key={order.id}
+                item
+                xs={12}
+                sm={compact ? 12 : 6}
                 md={compact ? 6 : 4}
                 lg={compact ? 4 : 3}
                 xl={compact ? 3 : 2}
@@ -444,11 +545,11 @@ const KitchenStation = ({
               const orderAge = (new Date() - new Date(order.created_at)) / 60000;
               return orderAge > (order.estimated_time || 20);
             }).map((order) => (
-              <Grid 
-                key={order.id} 
-                item 
-                xs={12} 
-                sm={compact ? 12 : 6} 
+              <Grid
+                key={order.id}
+                item
+                xs={12}
+                sm={compact ? 12 : 6}
                 md={compact ? 6 : 4}
                 lg={compact ? 4 : 3}
                 xl={compact ? 3 : 2}

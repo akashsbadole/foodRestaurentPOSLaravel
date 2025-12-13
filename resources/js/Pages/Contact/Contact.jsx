@@ -115,7 +115,8 @@ export default function Contact({ contacts, type, stores }) {
     const [totalBalance, setTotalBalance] = useState(0);
 
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    // Using Tailwind breakpoint values for consistency
+    const isMobile = useMediaQuery('(max-width: 479px)'); // Tailwind 'sm' breakpoint
 
     const [searchTerms, setSearchTerms] = useState({
         per_page: 100,

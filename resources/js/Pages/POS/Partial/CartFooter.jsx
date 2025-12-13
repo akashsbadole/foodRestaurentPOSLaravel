@@ -45,7 +45,7 @@ const StyledMenu = styled((props) => (
         borderRadius: 6,
         marginTop: theme.spacing(1),
         minWidth: 180,
-        [theme.breakpoints.down('sm')]: {
+        '@media (max-width: 479px)': { // Tailwind 'sm' breakpoint
             width: "100%",
         },
         color: 'rgb(55, 65, 81)',
@@ -85,7 +85,8 @@ export default function CartFooter() {
     const [saleTemplateModalOpen, setSaleTemplateModalOpen] = useState(false);
 
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    // Using Tailwind breakpoint values for consistency
+    const isMobile = useMediaQuery('(max-width: 479px)'); // Tailwind 'sm' breakpoint
 
     const [anchorEl, setAnchorEl] = React.useState(null);
     const open = Boolean(anchorEl);

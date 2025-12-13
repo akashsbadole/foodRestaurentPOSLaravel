@@ -41,7 +41,7 @@ const chartConfig = {
 }
 
 export function SalesChart() {
-  const chartData = usePage().props.data.saleChart
+  const chartData = usePage().props.data.saleChart || []
 
   const [timeRange, setTimeRange] = React.useState("90d")
 
@@ -58,6 +58,49 @@ export function SalesChart() {
     startDate.setDate(startDate.getDate() - daysToSubtract)
     return date >= startDate
   })
+
+  // Return empty state if no data
+  if (!chartData || chartData.length === 0) {
+    return (
+      <Card className="pt-0 w-full h-full">
+        <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+          <div className="grid flex-1 gap-1">
+            <CardTitle>SALES</CardTitle>
+            <CardDescription>
+              Showing total sales for the last 3 months
+            </CardDescription>
+          </div>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger
+              className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
+              aria-label="Select a value"
+            >
+              <SelectValue placeholder="Last 3 months" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-white">
+              <SelectItem value="90d" className="rounded-lg">
+                Last 3 months
+              </SelectItem>
+              <SelectItem value="30d" className="rounded-lg">
+                Last 30 days
+              </SelectItem>
+              <SelectItem value="7d" className="rounded-lg">
+                Last 7 days
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+          <div className="aspect-auto h-[250px] w-full flex items-center justify-center text-gray-500">
+            <div className="text-center">
+              <p>No sales data available</p>
+              <p className="text-sm">Sales will appear here once transactions are made</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="pt-0 w-full h-full">

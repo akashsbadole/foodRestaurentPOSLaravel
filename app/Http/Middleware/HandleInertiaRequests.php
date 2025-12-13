@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\Setting;
+use App\Models\BrandSetting;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Models\Role;
 
@@ -35,8 +36,7 @@ class HandleInertiaRequests extends Middleware
         $permissions = collect();
         if ($request->user()) {
             $user = $request->user();
-            $role = Role::where('name',$user->user_role)->first();
-            $permissions = $role->permissions;
+            $permissions = $user->getAllPermissions();
         }
 
         try {
@@ -55,6 +55,14 @@ class HandleInertiaRequests extends Middleware
 
             $modules = Setting::getModules();
             $shopName = $shopNameMeta->meta_value ?? 'InfoShop';
+            
+            // Get brand settings
+            try {
+                $brandSettings = BrandSetting::getCurrent();
+            } catch (\Exception $e) {
+                // If brand settings table doesn't exist, use defaults
+                $brandSettings = (object) BrandSetting::getDefault();
+            }
         } catch (\Exception $e) {
             // If settings table doesn't exist, use defaults
             $currencySettings = [];
@@ -71,6 +79,7 @@ class HandleInertiaRequests extends Middleware
                 'shop_name'=> $shopName ?? 'InfoShop',
                 'currency_settings'=>$currencySettings,
             ],
+            'brand'=> $brandSettings,
             'modules'=> $modules ?? [],
             'userPermissions'=>$permissions->pluck('name'),
         ];

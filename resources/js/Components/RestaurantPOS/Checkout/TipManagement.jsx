@@ -25,11 +25,17 @@ import {
   Calculate as CalculateIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     minHeight: '400px',
     maxHeight: '80vh',
+    background: theme.palette.mode === 'dark'
+      ? 'linear-gradient(145deg, #1a2332 0%, #243447 100%)'
+      : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+    border: `1px solid ${theme.palette.mode === 'dark' ? '#2c3e50' : '#e2e8f0'}`,
   },
 }));
 
@@ -37,14 +43,20 @@ const TipOption = styled(Box)(({ theme, selected }) => ({
   padding: theme.spacing(2),
   borderRadius: theme.shape.borderRadius,
   border: `2px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-  backgroundColor: selected ? theme.palette.primary.light : theme.palette.background.paper,
+  backgroundColor: selected
+    ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.2)' : theme.palette.primary.light)
+    : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : theme.palette.background.paper),
   cursor: 'pointer',
   transition: 'all 0.3s ease',
   textAlign: 'center',
   '&:hover': {
-    backgroundColor: selected ? theme.palette.primary.light : theme.palette.action.hover,
+    backgroundColor: selected
+      ? (theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.3)' : theme.palette.primary.light)
+      : (theme.palette.mode === 'dark' ? 'rgba(45, 55, 72, 0.8)' : theme.palette.action.hover),
     transform: 'translateY(-2px)',
-    boxShadow: theme.shadows[4],
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 20px rgba(30, 58, 95, 0.3)'
+      : theme.shadows[4],
   },
 }));
 
@@ -61,6 +73,8 @@ const TipManagement = ({
   allowAmountInput = true,
   currency = 'USD'
 }) => {
+  const theme = useTheme();
+  const { isDarkMode } = useThemeContext();
   const [tipType, setTipType] = useState('percentage'); // 'percentage', 'amount', 'custom'
   const [selectedPercentage, setSelectedPercentage] = useState(initialPercentage);
   const [customPercentage, setCustomPercentage] = useState(initialPercentage);
@@ -177,10 +191,29 @@ const TipManagement = ({
     <StyledDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
+          <Typography
+            variant="h6"
+            sx={{
+              background: isDarkMode
+                ? 'linear-gradient(45deg, #64b5f6, #90caf9)'
+                : 'linear-gradient(45deg, #1e3a5f, #2c5282)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             Add Tip
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#90caf9' : '#1e3a5f',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.1)' : 'rgba(30, 58, 95, 0.1)',
+              },
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>
@@ -188,11 +221,37 @@ const TipManagement = ({
 
       <DialogContent>
         {/* Subtotal Display */}
-        <Box mb={3} textAlign="center">
-          <Typography variant="body2" color="text.secondary" gutterBottom>
+        <Box
+          mb={3}
+          textAlign="center"
+          sx={{
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.1)' : 'rgba(44, 82, 130, 0.05)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(30, 58, 95, 0.2)' : 'rgba(44, 82, 130, 0.1)'}`,
+          }}
+        >
+          <Typography
+            variant="body2"
+            gutterBottom
+            sx={{
+              color: theme.palette.mode === 'dark' ? '#90caf9' : '#1e3a5f',
+            }}
+          >
             Subtotal
           </Typography>
-          <Typography variant="h4" fontWeight="bold" color="primary">
+          <Typography
+            variant="h4"
+            fontWeight="bold"
+            sx={{
+              background: isDarkMode
+                ? 'linear-gradient(45deg, #64b5f6, #90caf9)'
+                : 'linear-gradient(45deg, #1e3a5f, #2c5282)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             {formatCurrency(subtotal)}
           </Typography>
         </Box>

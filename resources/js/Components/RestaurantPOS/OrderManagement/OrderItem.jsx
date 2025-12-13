@@ -24,16 +24,23 @@ import {
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { useThemeContext } from '../../../Components/ThemeProvider';
 
-const StyledCard = styled(Card)(({ theme }) => ({
+const StyledCard = styled(Card)(({ theme, isDarkMode }) => ({
   marginBottom: theme.spacing(2),
   transition: 'all 0.3s ease',
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+    : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+  border: `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0'}`,
   '&:hover': {
-    boxShadow: theme.shadows[4],
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 4px 12px rgba(30, 58, 95, 0.3)'
+      : '0 4px 12px rgba(30, 58, 95, 0.15)',
   },
 }));
 
-const ItemHeader = styled(Box)(({ theme }) => ({
+const ItemHeader = styled(Box)(({ theme, isDarkMode }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -41,7 +48,9 @@ const ItemHeader = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   '&:hover': {
-    backgroundColor: theme.palette.action.hover,
+    backgroundColor: theme.palette.mode === 'dark'
+      ? 'rgba(96, 165, 250, 0.1)'
+      : 'rgba(30, 58, 95, 0.1)',
   },
 }));
 
@@ -69,6 +78,7 @@ const OrderItem = ({
   compact = false,
   expanded: controlledExpanded = false
 }) => {
+  const { isDarkMode } = useThemeContext();
   const [expanded, setExpanded] = useState(controlledExpanded);
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -139,12 +149,23 @@ const OrderItem = ({
   };
 
   return (
-    <StyledCard elevation={compact ? 1 : 2}>
+    <StyledCard isDarkMode={isDarkMode} elevation={compact ? 1 : 2}>
       <CardContent sx={{ p: compact ? 1 : 2 }}>
-        <ItemHeader onClick={handleToggleExpanded}>
+        <ItemHeader isDarkMode={isDarkMode} onClick={handleToggleExpanded}>
           <Box flex={1}>
             <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <Typography variant={compact ? "body2" : "h6"} fontWeight="bold">
+              <Typography
+                variant={compact ? "body2" : "h6"}
+                fontWeight="bold"
+                sx={{
+                  background: isDarkMode
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #3182ce 100%)'
+                    : 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
                 {item.name}
               </Typography>
               {item.status && (
@@ -155,18 +176,47 @@ const OrderItem = ({
                 />
               )}
               {item.is_special && (
-                <Chip label="Special" color="secondary" size="small" />
+                <Chip
+                  label="Special"
+                  color="secondary"
+                  size="small"
+                  sx={{
+                    backgroundColor: isDarkMode ? 'rgba(49, 130, 246, 0.2)' : 'rgba(49, 130, 246, 0.1)',
+                    border: `1px solid ${isDarkMode ? 'rgba(49, 130, 246, 0.3)' : 'rgba(49, 130, 246, 0.2)'}`,
+                  }}
+                />
               )}
             </Box>
 
             {!compact && item.description && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                gutterBottom
+                sx={{
+                  p: 1,
+                  borderRadius: 1,
+                  backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.05)' : 'rgba(30, 58, 95, 0.02)',
+                }}
+              >
                 {item.description}
               </Typography>
             )}
 
             <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="body1" color="primary" fontWeight="bold">
+              <Typography
+                variant="body1"
+                color="primary"
+                fontWeight="bold"
+                sx={{
+                  background: isDarkMode
+                    ? 'linear-gradient(135deg, #60a5fa 0%, #3182ce 100%)'
+                    : 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
+              >
                 {formatCurrency(calculateItemTotal())}
               </Typography>
 
@@ -176,33 +226,57 @@ const OrderItem = ({
                     size="small"
                     onClick={handleQuantityDecrease}
                     disabled={item.quantity <= 1}
+                    sx={{
+                      backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)',
+                      color: 'error.main',
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+                      }
+                    }}
                   >
                     <RemoveIcon />
                   </IconButton>
-                  <Typography variant="body1" sx={{ minWidth: '30px', textAlign: 'center' }}>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      minWidth: '30px',
+                      textAlign: 'center',
+                      backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+                      borderRadius: 1,
+                      mx: 0.5,
+                    }}
+                  >
                     {item.quantity}
                   </Typography>
                   <IconButton
                     size="small"
                     onClick={handleQuantityIncrease}
+                    sx={{
+                      backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)',
+                      color: 'success.main',
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                      }
+                    }}
                   >
                     <AddIcon />
                   </IconButton>
                 </QuantityControls>
               )}
             </Box>
-
-            {item.modifiers && item.modifiers.length > 0 && (
-              <Box mt={1}>
-                <Typography variant="caption" color="text.secondary">
-                  {item.modifiers.length} modifier{item.modifiers.length > 1 ? 's' : ''}
-                </Typography>
-              </Box>
-            )}
           </Box>
 
           {showControls && (
-            <IconButton size="small" onClick={handleMenuClick}>
+            <IconButton
+              size="small"
+              onClick={handleMenuClick}
+              sx={{
+                backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.1)' : 'rgba(30, 58, 95, 0.05)',
+                '&:hover': {
+                  backgroundColor: isDarkMode ? 'rgba(30, 58, 95, 0.2)' : 'rgba(30, 58, 95, 0.1)',
+                }
+              }}
+            >
               <MoreVertIcon />
             </IconButton>
           )}
@@ -324,20 +398,27 @@ const OrderItem = ({
       </CardContent>
 
       {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleEdit}>
-          <EditIcon sx={{ mr: 1 }} />
-          Edit Item
-        </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-          <DeleteIcon sx={{ mr: 1 }} />
-          Remove Item
-        </MenuItem>
-      </Menu>
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={handleMenuClose}
+      PaperProps={{
+        sx: {
+          backgroundColor: 'background.paper',
+          border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+          boxShadow: '0 4px 12px rgba(30, 58, 95, 0.15)',
+        }
+      }}
+    >
+      <MenuItem onClick={handleEdit}>
+        <EditIcon sx={{ mr: 1 }} />
+        Edit Item
+      </MenuItem>
+      <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+        <DeleteIcon sx={{ mr: 1 }} />
+        Remove Item
+      </MenuItem>
+    </Menu>
     </StyledCard>
   );
 };

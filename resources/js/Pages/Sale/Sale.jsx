@@ -136,7 +136,8 @@ const columns = (handleRowClick, formatCurrency) => [
 export default function Sale({ sales, contacts }) {
     const formatCurrency = useCurrencyFormatter();
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    // Using Tailwind breakpoint values for consistency
+    const isMobile = useMediaQuery('(max-width: 479px)'); // Tailwind 'sm' breakpoint
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [viewDetailsModalOpen, setViewDetailsModalOpen] = useState(false);

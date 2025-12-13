@@ -29,12 +29,20 @@ import {
   Restaurant as RestaurantIcon,
   Notes as NotesIcon
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
+import { useCustomTheme } from '@/Components/ThemeProvider';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     minHeight: '600px',
     maxHeight: '90vh',
+    background: theme.palette.mode === 'dark'
+      ? `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`
+      : `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.grey[50]} 100%)`,
+    border: `1px solid ${theme.palette.divider}`,
+    boxShadow: theme.palette.mode === 'dark'
+      ? '0 8px 30px rgba(0, 0, 0, 0.4)'
+      : '0 8px 30px rgba(30, 58, 95, 0.2)',
   },
 }));
 
@@ -42,19 +50,36 @@ const TimeSlot = styled(Box)(({ theme, selected, available }) => ({
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   border: `1px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-  backgroundColor: selected 
-    ? theme.palette.primary.light 
-    : available 
-      ? theme.palette.background.paper 
-      : theme.palette.action.disabledBackground,
+  background: selected
+    ? theme.palette.mode === 'dark'
+      ? `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`
+      : `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.grey[50]} 100%)`
+    : available
+      ? theme.palette.mode === 'dark'
+        ? `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`
+        : `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.grey[50]} 100%)`
+      : theme.palette.mode === 'dark'
+        ? alpha(theme.palette.text.disabled, 0.1)
+        : alpha(theme.palette.text.disabled, 0.05),
   cursor: available ? 'pointer' : 'not-allowed',
   transition: 'all 0.3s ease',
   textAlign: 'center',
   minWidth: '80px',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+    : '0 2px 8px rgba(30, 58, 95, 0.1)',
   '&:hover': {
-    backgroundColor: available 
-      ? (selected ? theme.palette.primary.light : theme.palette.action.hover)
-      : theme.palette.action.disabledBackground,
+    background: available
+      ? (selected
+        ? theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${theme.palette.action.hover} 0%, ${theme.palette.action.selected} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.grey[50]} 0%, ${theme.palette.grey[100]} 100%)`
+        : theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${theme.palette.action.hover} 0%, ${theme.palette.action.selected} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.grey[50]} 0%, ${theme.palette.grey[100]} 100%)`)
+      : theme.palette.mode === 'dark'
+        ? alpha(theme.palette.text.disabled, 0.1)
+        : alpha(theme.palette.text.disabled, 0.05),
   },
 }));
 
@@ -75,6 +100,7 @@ const ReservationForm = ({
   maxGuests = 20,
   defaultDuration = 120 // minutes
 }) => {
+  const { isDarkMode } = useCustomTheme();
   const [formData, setFormData] = useState({
     customer_name: '',
     phone: '',
@@ -115,7 +141,7 @@ const ReservationForm = ({
           is_recurring: reservation.is_recurring || false,
           recurring_frequency: reservation.recurring_frequency || 'weekly'
         });
-        
+
         const reservationTime = new Date(reservation.date_time);
         setSelectedTimeSlot(reservationTime.toTimeString().slice(0, 5));
       } else {
@@ -133,7 +159,7 @@ const ReservationForm = ({
   // Filter available tables based on guest count and date
   useEffect(() => {
     if (allowTableSelection && formData.guest_count) {
-      const available = tables.filter(table => 
+      const available = tables.filter(table =>
         table.capacity >= formData.guest_count && table.status === 'available'
       );
       setAvailableTables(available);
@@ -204,7 +230,7 @@ const ReservationForm = ({
     if (!validateForm()) return;
 
     setLoading(true);
-    
+
     const submissionData = {
       ...formData,
       guest_count: parseInt(formData.guest_count),
@@ -213,7 +239,7 @@ const ReservationForm = ({
     };
 
     onSubmit?.(submissionData);
-    
+
     // Simulate API call
     setTimeout(() => {
       setLoading(false);
@@ -224,17 +250,17 @@ const ReservationForm = ({
   const formatTime = (time) => {
     if (!time) return '';
     const date = new Date(`2000-01-01T${time}`);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
   const formatDate = (dateTime) => {
     if (!dateTime) return '';
     const date = new Date(dateTime);
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -244,7 +270,7 @@ const ReservationForm = ({
 
   const getAvailableTimeSlots = () => {
     if (!formData.date_time) return [];
-    
+
     const selectedDate = new Date(formData.date_time).toDateString();
     return timeSlots.filter(slot => {
       const slotDate = new Date(slot.time).toDateString();
@@ -254,12 +280,26 @@ const ReservationForm = ({
 
   return (
     <StyledDialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
+      <DialogTitle
+        sx={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+          borderBottom: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+        }}
+      >
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
+          <Typography
+            variant="h6"
+            sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+          >
             {mode === 'create' ? 'Create Reservation' : 'Edit Reservation'}
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{ color: isDarkMode ? '#90caf9' : '#1e3a5f' }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>
@@ -268,10 +308,14 @@ const ReservationForm = ({
       <DialogContent>
         {/* Customer Information */}
         <Box mb={3}>
-          <Typography variant="subtitle1" gutterBottom>
+          <Typography
+            variant="subtitle1"
+            gutterBottom
+            sx={{ color: isDarkMode ? '#ffffff' : '#1e3a5f', fontWeight: 'bold' }}
+          >
             Customer Information
           </Typography>
-          
+
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -287,7 +331,7 @@ const ReservationForm = ({
                 required
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -302,7 +346,7 @@ const ReservationForm = ({
                 required={requirePhone}
               />
             </Grid>
-            
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -325,7 +369,7 @@ const ReservationForm = ({
           <Typography variant="subtitle1" gutterBottom>
             Reservation Details
           </Typography>
-          
+
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -348,7 +392,7 @@ const ReservationForm = ({
                 required
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -367,7 +411,7 @@ const ReservationForm = ({
                 required
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -385,7 +429,7 @@ const ReservationForm = ({
                 required
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -453,7 +497,7 @@ const ReservationForm = ({
             <Typography variant="subtitle1" gutterBottom>
               Available Time Slots
             </Typography>
-            
+
             <Box display="flex" gap={1} flexWrap="wrap">
               {getAvailableTimeSlots().map((slot) => (
                 <TimeSlot
@@ -480,7 +524,7 @@ const ReservationForm = ({
             <Typography variant="subtitle1" gutterBottom>
               Special Requests
             </Typography>
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <FormControl fullWidth>
@@ -500,7 +544,7 @@ const ReservationForm = ({
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -515,7 +559,7 @@ const ReservationForm = ({
                   }}
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -543,7 +587,7 @@ const ReservationForm = ({
               }
               label="Recurring Reservation"
             />
-            
+
             {formData.is_recurring && (
               <Box mt={2}>
                 <FormControl fullWidth>
@@ -581,7 +625,7 @@ const ReservationForm = ({
           <Typography variant="subtitle2" gutterBottom>
             Reservation Summary
           </Typography>
-          
+
           <Grid container spacing={1}>
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">
@@ -593,7 +637,7 @@ const ReservationForm = ({
                 {formData.customer_name}
               </Typography>
             </Grid>
-            
+
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">
                 Date & Time:
@@ -604,7 +648,7 @@ const ReservationForm = ({
                 {formData.date_time ? `${formatDate(formData.date_time)} at ${formatTime(formData.date_time.split('T')[1])}` : 'Not set'}
               </Typography>
             </Grid>
-            
+
             <Grid item xs={6}>
               <Typography variant="body2" color="text.secondary">
                 Guests:
@@ -615,7 +659,7 @@ const ReservationForm = ({
                 {formData.guest_count}
               </Typography>
             </Grid>
-            
+
             {formData.table_id && (
               <>
                 <Grid item xs={6}>
@@ -634,14 +678,44 @@ const ReservationForm = ({
         </Box>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions
+        sx={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+          borderTop: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
+          padding: theme.spacing(2),
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          sx={{
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(30, 58, 95, 0.3)',
+            color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)',
+            '&:hover': {
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 58, 95, 0.5)',
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(30, 58, 95, 0.05)',
+            },
+          }}
+        >
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={loading}
+          sx={{
+            background: isDarkMode
+              ? 'linear-gradient(135deg, #1e3a5f 0%, #3182ce 100%)'
+              : 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)',
+            color: '#ffffff',
+            '&:hover': {
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)'
+                : 'linear-gradient(135deg, #2c5282 0%, #3182ce 100%)',
+            },
+          }}
         >
           {loading ? 'Saving...' : (mode === 'create' ? 'Create Reservation' : 'Update Reservation')}
         </Button>
