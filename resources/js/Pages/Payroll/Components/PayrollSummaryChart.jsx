@@ -44,7 +44,7 @@ const PayrollSummaryChart = ({ data = [], period = 'current_month' }) => {
             borderColor: 'divider',
             borderRadius: 2,
             p: 2,
-            boxShadow: theme.palette.shadows[2]
+            boxShadow: theme.shadows[2]
           }}
         >
           <Typography variant="body2" fontWeight="bold">

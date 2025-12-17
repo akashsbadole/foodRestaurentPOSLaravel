@@ -362,6 +362,20 @@ Route::get('/update', [UpgradeController::class, 'showUploadForm'])->name('uploa
             Route::get('/statistics', [KitchenController::class, 'getStatistics'])->name('statistics');
             Route::get('/queue-status', [KitchenController::class, 'getQueueStatus'])->name('queue-status');
             Route::get('/stations', [KitchenController::class, 'getStations'])->name('stations');
+            
+            // KOT Management Routes
+            Route::prefix('kot')->name('kot.')->group(function () {
+                Route::post('/order/{orderId}/generate', [KitchenController::class, 'generateKOT'])->name('generate');
+                Route::post('/item/{orderItemId}/regenerate', [KitchenController::class, 'regenerateKOT'])->name('regenerate');
+                Route::post('/{kotId}/print', [KitchenController::class, 'printKOT'])->name('print');
+                Route::post('/order/{orderId}/print-consolidated', [KitchenController::class, 'printConsolidatedKOT'])->name('print-consolidated');
+                Route::post('/{kotId}/verify-stock', [KitchenController::class, 'verifyKOTStock'])->name('verify-stock');
+                Route::get('/{kotId}/details', [KitchenController::class, 'getKOTDetails'])->name('details');
+                Route::get('/{kotId}/export/text', [KitchenController::class, 'exportKOTText'])->name('export-text');
+                Route::get('/{kotId}/export/json', [KitchenController::class, 'exportKOTJSON'])->name('export-json');
+                Route::get('/statistics', [KitchenController::class, 'getKOTStatistics'])->name('statistics');
+                Route::post('/test-printer', [KitchenController::class, 'testPrinter'])->name('test-printer');
+            });
         });
         
         // Reservation Management Routes

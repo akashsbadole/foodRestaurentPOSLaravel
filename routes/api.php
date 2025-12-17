@@ -25,11 +25,15 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Restaurant API v1 Routes
+// Restaurant API v1 Routes (Unauthenticated for order creation)
+Route::prefix('v1/restaurant')->name('api.v1.restaurant.public.')->group(function () {
+    Route::get('/tables', [RestaurantController::class, 'tables'])->name('tables');
+});
+
+// Restaurant API v1 Routes (Authenticated)
 Route::prefix('v1/restaurant')->name('api.v1.restaurant.')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Restaurant Dashboard and Status
     Route::get('/dashboard', [RestaurantController::class, 'dashboard'])->name('dashboard');
-    Route::get('/tables', [RestaurantController::class, 'tables'])->name('tables');
     Route::get('/tables/available', [RestaurantController::class, 'availableTables'])->name('tables.available');
     Route::get('/orders/active', [RestaurantController::class, 'activeOrders'])->name('orders.active');
     Route::get('/reservations/today', [RestaurantController::class, 'todayReservations'])->name('reservations.today');
@@ -46,4 +50,18 @@ Route::prefix('v1/restaurant/orders')->name('api.v1.restaurant.orders.')->middle
     Route::put('/{id}/status', [OrderController::class, 'updateStatus'])->name('update-status');
     Route::post('/{id}/items', [OrderController::class, 'addItem'])->name('add-item');
     Route::delete('/{orderId}/items/{itemId}', [OrderController::class, 'removeItem'])->name('remove-item');
+});
+
+// KOT API Routes
+Route::prefix('v1/kitchen/kot')->name('api.v1.kitchen.kot.')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::post('/order/{orderId}/generate', [App\Http\Controllers\KitchenController::class, 'generateKOT'])->name('generate');
+    Route::post('/item/{orderItemId}/regenerate', [App\Http\Controllers\KitchenController::class, 'regenerateKOT'])->name('regenerate');
+    Route::post('/{kotId}/print', [App\Http\Controllers\KitchenController::class, 'printKOT'])->name('print');
+    Route::post('/order/{orderId}/print-consolidated', [App\Http\Controllers\KitchenController::class, 'printConsolidatedKOT'])->name('print-consolidated');
+    Route::post('/{kotId}/verify-stock', [App\Http\Controllers\KitchenController::class, 'verifyKOTStock'])->name('verify-stock');
+    Route::get('/{kotId}/details', [App\Http\Controllers\KitchenController::class, 'getKOTDetails'])->name('details');
+    Route::get('/{kotId}/export/text', [App\Http\Controllers\KitchenController::class, 'exportKOTText'])->name('export-text');
+    Route::get('/{kotId}/export/json', [App\Http\Controllers\KitchenController::class, 'exportKOTJSON'])->name('export-json');
+    Route::get('/statistics', [App\Http\Controllers\KitchenController::class, 'getKOTStatistics'])->name('statistics');
+    Route::post('/test-printer', [App\Http\Controllers\KitchenController::class, 'testPrinter'])->name('test-printer');
 });

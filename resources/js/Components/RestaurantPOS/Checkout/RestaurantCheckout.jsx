@@ -846,9 +846,9 @@ const RestaurantCheckout = ({
                     gap: 1,
                   }}
                 >
-                  <Box 
+                  <Box
                     sx={{
-                      color: selected 
+                      color: selectedPaymentMethod === method
                         ? (isDarkMode ? '#90caf9' : '#1e3a5f')
                         : (isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'),
                       transition: 'all 0.3s ease',
@@ -856,11 +856,11 @@ const RestaurantCheckout = ({
                   >
                     {getPaymentMethodIcon(method)}
                   </Box>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontWeight: selected ? 600 : 500,
-                      color: selected 
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: selectedPaymentMethod === method ? 600 : 500,
+                      color: selectedPaymentMethod === method
                         ? (isDarkMode ? '#90caf9' : '#1e3a5f')
                         : (isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)'),
                     }}

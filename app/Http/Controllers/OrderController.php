@@ -12,6 +12,9 @@ use App\Models\Restaurant\RestaurantTable;
 use App\Models\Sale;
 use App\Models\Contact;
 use App\Models\Store;
+use App\Models\Product;
+use App\Models\ProductStock;
+use App\Services\Restaurant\OrderModificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +25,12 @@ use Illuminate\Support\Carbon;
 
 class OrderController extends Controller
 {
+    protected $orderModificationService;
+
+    public function __construct(OrderModificationService $orderModificationService)
+    {
+        $this->orderModificationService = $orderModificationService;
+    }
     /**
      * Display orders page
      */
@@ -148,19 +157,56 @@ class OrderController extends Controller
             ], 422);
         }
 
+        // Additional validation for table availability
+        $tableValidation = $this->validateTableAvailability(
+            $request->input('table_id'), 
+            $request->input('customer_count'), 
+            $request->input('order_type')
+        );
+        
+        if (!$tableValidation['valid']) {
+            return response()->json([
+                'message' => 'Table not available',
+                'error' => $tableValidation['message']
+            ], 422);
+        }
+
+        // Validate product availability and stock
+        $productValidation = $this->validateProductAvailability(
+            $request->input('items'), 
+            $storeId
+        );
+        
+        if (!$productValidation['valid']) {
+            return response()->json([
+                'message' => 'Product not available',
+                'error' => $productValidation['message']
+            ], 422);
+        }
+
+        // Validate modifier combinations
+        $modifierValidation = $this->validateModifiers($request->input('items'));
+        
+        if (!$modifierValidation['valid']) {
+            return response()->json([
+                'message' => 'Invalid modifiers',
+                'error' => $modifierValidation['message']
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
-            // Generate order number
-            $orderNumber = $this->generateOrderNumber();
+            // Use lockForUpdate to prevent concurrent order creation conflicts
+            $orderNumber = $this->generateOrderNumberWithLock();
 
-            // Create restaurant order
+            // Create restaurant order with enhanced validation
             $order = RestaurantOrder::create([
                 'order_number' => $orderNumber,
                 'table_id' => $request->input('table_id'),
                 'order_type' => $request->input('order_type'),
                 'customer_count' => $request->input('customer_count'),
                 'waiter_id' => $request->input('waiter_id', Auth::id()),
-                'status' => 'pending',
+                'status' => 'pending', // Proper order status initialization
                 'priority' => $request->input('priority', 'normal'),
                 'special_instructions' => $request->input('special_instructions'),
                 'estimated_time' => $request->input('estimated_time'),
@@ -170,15 +216,17 @@ class OrderController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            // Update table status if dine-in
+            // Update table status if dine-in with proper error handling
             if ($request->input('order_type') === 'dine_in' && $request->input('table_id')) {
                 $table = RestaurantTable::find($request->input('table_id'));
-                if ($table) {
+                if ($table && $table->isAvailable()) {
                     $table->markAsOccupied($order->id);
+                } else {
+                    throw new \Exception('Table became unavailable during order creation');
                 }
             }
 
-            // Create order items
+            // Create order items with stock reservation
             $subtotal = 0;
             foreach ($request->input('items') as $itemData) {
                 $orderItem = RestaurantOrderItem::create([
@@ -196,7 +244,13 @@ class OrderController extends Controller
                     'is_complimentary' => $itemData['is_complimentary'] ?? false,
                 ]);
 
-                // Add modifiers if any
+                // Reserve stock for products with stock management
+                $product = Product::find($itemData['product_id']);
+                if ($product && $product->is_stock_managed) {
+                    $orderItem->reserveStock($storeId, $itemData['quantity']);
+                }
+
+                // Add modifiers with validation
                 if (isset($itemData['modifiers']) && !empty($itemData['modifiers'])) {
                     foreach ($itemData['modifiers'] as $modifierData) {
                         RestaurantOrderItemModifier::create([
@@ -211,14 +265,8 @@ class OrderController extends Controller
                 $subtotal += $orderItem->calculateSubtotal();
             }
 
-            // Calculate totals
-            $order->subtotal = $subtotal;
-            $order->tax_amount = $order->calculateTax();
-            $order->service_charge = $order->calculateServiceCharge();
-            $order->total_amount = $order->subtotal + 
-                               $order->tax_amount + 
-                               $order->service_charge;
-            $order->save();
+            // Calculate initial order totals
+            $order->calculateInitialTotals($subtotal);
 
             // Create sale record
             $sale = Sale::create([
@@ -245,7 +293,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Order created successfully',
-                'order' => $order->load(['table', 'waiter', 'items.product']),
+                'order' => $order->load(['table', 'waiter', 'items.product', 'items.modifiers.modifier']),
                 'sale_id' => $sale->id,
             ], 201);
         } catch (\Exception $e) {
@@ -443,6 +491,12 @@ class OrderController extends Controller
                 'is_complimentary' => $request->input('is_complimentary', false),
             ]);
 
+            // Reserve stock for products with stock management
+            $product = Product::find($request->input('product_id'));
+            if ($product && $product->is_stock_managed) {
+                $orderItem->reserveStock($storeId, $request->input('quantity'));
+            }
+
             // Add modifiers if any
             if ($request->has('modifiers') && !empty($request->input('modifiers'))) {
                 foreach ($request->input('modifiers') as $modifierData) {
@@ -561,6 +615,12 @@ class OrderController extends Controller
         }
 
         try {
+            // Release reserved stock
+            $product = Product::find($orderItem->product_id);
+            if ($product && $product->is_stock_managed) {
+                $orderItem->releaseStock($storeId, $orderItem->quantity);
+            }
+
             // Delete modifiers first
             $orderItem->modifiers()->delete();
             
@@ -697,11 +757,20 @@ class OrderController extends Controller
             ], 422);
         }
 
+        DB::beginTransaction();
         try {
             $order->status = 'cancelled';
             $order->special_instructions = ($order->special_instructions ?? '') . 
                                        "\n\nCancelled: " . $request->input('cancellation_reason');
             $order->save();
+
+            // Release reserved stock for all items
+            foreach ($order->items as $item) {
+                $product = Product::find($item->product_id);
+                if ($product && $product->is_stock_managed) {
+                    $item->releaseStock($storeId, $item->quantity);
+                }
+            }
 
             // Update table status if dine-in
             if ($order->table) {
@@ -714,11 +783,15 @@ class OrderController extends Controller
                 $order->sale->save();
             }
 
+            DB::commit();
+
             return response()->json([
                 'message' => 'Order cancelled successfully',
                 'order' => $order->load(['table', 'waiter'])
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+
             Log::error('Failed to cancel order', [
                 'error' => $e->getMessage(),
                 'order_id' => $id,
@@ -805,6 +878,511 @@ class OrderController extends Controller
         return $prefix . $date . str_pad($sequence, 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Generate unique order number with locking for concurrent order creation
+     */
+    private function generateOrderNumberWithLock()
+    {
+        $prefix = 'ORD';
+        $date = now()->format('Ymd');
+        
+        return DB::transaction(function() use ($prefix, $date) {
+            $lastOrder = RestaurantOrder::whereDate('created_at', today())
+                ->lockForUpdate()
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $sequence = $lastOrder ? intval(substr($lastOrder->order_number, -4)) + 1 : 1;
+            
+            return $prefix . $date . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        });
+    }
+
+    /**
+     * Validate table availability for order
+     */
+    private function validateTableAvailability($tableId, $customerCount, $orderType)
+    {
+        if ($orderType !== 'dine_in' || !$tableId) {
+            return ['valid' => true];
+        }
+
+        $table = RestaurantTable::find($tableId);
+        if (!$table) {
+            return ['valid' => false, 'message' => 'Table not found'];
+        }
+        
+        if (!$table->isAvailable()) {
+            return ['valid' => false, 'message' => 'Table is currently occupied or reserved'];
+        }
+        
+        if (!$table->canSeat($customerCount)) {
+            return ['valid' => false, 'message' => "Table cannot accommodate {$customerCount} customers"];
+        }
+        
+        return ['valid' => true];
+    }
+
+    /**
+     * Validate product availability and stock
+     */
+    private function validateProductAvailability($items, $storeId)
+    {
+        $productIds = collect($items)->pluck('product_id');
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        
+        foreach ($items as $itemData) {
+            $product = $products->get($itemData['product_id']);
+            if (!$product || !$product->is_active) {
+                return ['valid' => false, 'message' => 'One or more products are not available or inactive'];
+            }
+            
+            // Check stock for products with stock management
+            if ($product->is_stock_managed) {
+                $stock = ProductStock::where('product_id', $itemData['product_id'])
+                    ->where('store_id', $storeId)
+                    ->sum('quantity');
+                
+                if ($stock < $itemData['quantity']) {
+                    return [
+                        'valid' => false, 
+                        'message' => "Product '{$product->name}' has insufficient stock. Available: {$stock}, Requested: {$itemData['quantity']}"
+                    ];
+                }
+            }
+        }
+        
+        return ['valid' => true];
+    }
+
+    /**
+     * Validate modifier combinations
+     */
+    private function validateModifiers($items)
+    {
+        foreach ($items as $itemData) {
+            if (isset($itemData['modifiers']) && !empty($itemData['modifiers'])) {
+                $modifierIds = collect($itemData['modifiers'])->pluck('modifier_id');
+                $modifiers = MenuModifier::whereIn('id', $modifierIds)->active()->get();
+                
+                if ($modifiers->count() !== $modifierIds->count()) {
+                    return ['valid' => false, 'message' => 'One or more selected modifiers are not available'];
+                }
+            }
+        }
+    
+        return ['valid' => true];
+    }
+
+    /**
+     * Enhanced add item to order with comprehensive business logic
+     */
+    public function addItemEnhanced(Request $request, $id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|numeric|min:0.01',
+            'unit_price' => 'required|numeric|min:0',
+            'unit_cost' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
+            'special_instructions' => 'nullable|string|max:500',
+            'preparation_notes' => 'nullable|string|max:500',
+            'course_number' => 'nullable|integer|min:1',
+            'is_complimentary' => 'nullable|boolean',
+            'modifiers' => 'nullable|array',
+            'modifiers.*.modifier_id' => 'required|exists:menu_modifiers,id',
+            'modifiers.*.quantity' => 'required|numeric|min:0.01',
+            'modifiers.*.price_adjustment' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $this->orderModificationService->addItemToOrder(
+            $order,
+            $request->all(),
+            $storeId,
+            Auth::id()
+        );
+
+        return response()->json($result, $result['success'] ? 201 : 422);
+    }
+
+    /**
+     * Enhanced remove item from order with comprehensive business logic
+     */
+    public function removeItemEnhanced(Request $request, $orderId, $itemId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($orderId);
+        $orderItem = RestaurantOrderItem::where('order_id', $orderId)->findOrFail($itemId);
+
+        $validator = Validator::make($request->all(), [
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $this->orderModificationService->removeItemFromOrder(
+            $order,
+            $orderItem,
+            $storeId,
+            Auth::id(),
+            $request->input('reason', 'Item removed by staff')
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Enhanced update item quantity with comprehensive business logic
+     */
+    public function updateItemQuantityEnhanced(Request $request, $orderId, $itemId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($orderId);
+        $orderItem = RestaurantOrderItem::where('order_id', $orderId)->findOrFail($itemId);
+
+        $validator = Validator::make($request->all(), [
+            'quantity' => 'required|numeric|min:0.01',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $this->orderModificationService->updateItemQuantity(
+            $order,
+            $orderItem,
+            $request->input('quantity'),
+            $storeId,
+            Auth::id()
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Enhanced update item modifiers with comprehensive business logic
+     */
+    public function updateItemModifiersEnhanced(Request $request, $orderId, $itemId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($orderId);
+        $orderItem = RestaurantOrderItem::where('order_id', $orderId)->findOrFail($itemId);
+
+        $validator = Validator::make($request->all(), [
+            'modifiers' => 'required|array',
+            'modifiers.*.modifier_id' => 'required|exists:menu_modifiers,id',
+            'modifiers.*.quantity' => 'required|numeric|min:0.01',
+            'modifiers.*.price_adjustment' => 'required|numeric',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $this->orderModificationService->updateItemModifiers(
+            $order,
+            $orderItem,
+            $request->input('modifiers'),
+            $storeId,
+            Auth::id()
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Enhanced cancel order with comprehensive business logic
+     */
+    public function cancelEnhanced(Request $request, $id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'cancellation_reason' => 'required|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $this->orderModificationService->cancelOrder(
+            $order,
+            $storeId,
+            Auth::id(),
+            $request->input('cancellation_reason')
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Get order modification status and restrictions
+     */
+    public function getModificationStatus($id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        return response()->json([
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+            'modification_status' => $order->getModificationStatus(),
+            'items' => $order->items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'product_name' => $item->product->name,
+                    'quantity' => $item->quantity,
+                    'status' => $item->status,
+                    'modification_status' => $item->getModificationStatus(),
+                ];
+            })
+        ]);
+    }
+
+    /**
+     * Get item modification status and restrictions
+     */
+    public function getItemModificationStatus($orderId, $itemId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($orderId);
+        $orderItem = RestaurantOrderItem::where('order_id', $orderId)->findOrFail($itemId);
+
+        return response()->json([
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'order_status' => $order->status,
+            'item_id' => $orderItem->id,
+            'product_name' => $orderItem->product->name,
+            'quantity' => $orderItem->quantity,
+            'status' => $orderItem->status,
+            'modification_status' => $orderItem->getModificationStatus(),
+            'kot_status' => $orderItem->getKOTStatus(),
+            'modifiers' => $orderItem->modifiers->map(function($modifier) {
+                return [
+                    'id' => $modifier->id,
+                    'modifier_name' => $modifier->modifier->name,
+                    'quantity' => $modifier->quantity,
+                    'price_adjustment' => $modifier->price_adjustment,
+                ];
+            })
+        ]);
+    }
+
+    /**
+     * Get modification history for an order
+     */
+    public function getModificationHistory($id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        return response()->json([
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'modification_history' => $order->getModificationHistory(),
+            'items_history' => $order->items->mapWithKeys(function($item) {
+                return [$item->id => $item->getModificationHistory()];
+            })
+        ]);
+    }
+
+    /**
+     * Validate order modification before applying
+     */
+    public function validateModification(Request $request, $id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'modification_type' => 'required|in:add_item,remove_item,update_quantity,update_modifiers,cancel_order',
+            'item_data' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        $result = $order->validateModification(
+            $request->input('modification_type'),
+            $request->input('item_data')
+        );
+
+        return response()->json([
+            'valid' => empty($result),
+            'errors' => $result,
+            'order_status' => $order->getModificationStatus()
+        ]);
+    }
+
+    /**
+     * Batch modify multiple items in an order
+     */
+    public function batchModifyItems(Request $request, $id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'modifications' => 'required|array|min:1',
+            'modifications.*.item_id' => 'required|exists:restaurant_order_items,id',
+            'modifications.*.action' => 'required|in:update_quantity,update_modifiers,remove',
+            'modifications.*.data' => 'nullable|array',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $results = [];
+            $modifications = $request->input('modifications');
+
+            foreach ($modifications as $modification) {
+                $itemId = $modification['item_id'];
+                $action = $modification['action'];
+                $data = $modification['data'] ?? [];
+
+                $orderItem = RestaurantOrderItem::where('order_id', $order->id)->findOrFail($itemId);
+
+                switch ($action) {
+                    case 'update_quantity':
+                        if (!isset($data['quantity'])) {
+                            throw new \Exception('Quantity is required for update_quantity action');
+                        }
+                        $result = $this->orderModificationService->updateItemQuantity(
+                            $order,
+                            $orderItem,
+                            $data['quantity'],
+                            $storeId,
+                            Auth::id()
+                        );
+                        break;
+
+                    case 'update_modifiers':
+                        if (!isset($data['modifiers'])) {
+                            throw new \Exception('Modifiers are required for update_modifiers action');
+                        }
+                        $result = $this->orderModificationService->updateItemModifiers(
+                            $order,
+                            $orderItem,
+                            $data['modifiers'],
+                            $storeId,
+                            Auth::id()
+                        );
+                        break;
+
+                    case 'remove':
+                        $result = $this->orderModificationService->removeItemFromOrder(
+                            $order,
+                            $orderItem,
+                            $storeId,
+                            Auth::id(),
+                            $request->input('reason', 'Batch item removal')
+                        );
+                        break;
+
+                    default:
+                        $result = ['success' => false, 'message' => 'Unknown action: ' . $action];
+                }
+
+                $results[] = [
+                    'item_id' => $itemId,
+                    'action' => $action,
+                    'result' => $result
+                ];
+
+                if (!$result['success']) {
+                    throw new \Exception('Batch modification failed for item ' . $itemId . ': ' . $result['message']);
+                }
+            }
+
+            // Recalculate order totals after all modifications
+            $order->calculateTotals();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Batch modification completed successfully',
+                'results' => $results,
+                'order' => $order->load(['items.product'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Batch modification failed', [
+                'error' => $e->getMessage(),
+                'order_id' => $id,
+                'modifications' => $request->input('modifications')
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Batch modification failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get real-time order status for WebSocket updates
+     */
+    public function getRealTimeStatus($id)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $order = RestaurantOrder::forStore($storeId)->with([
+            'items.product',
+            'items.modifiers.modifier',
+            'table.section',
+            'waiter'
+        ])->findOrFail($id);
+
+        return response()->json([
+            'order' => $order->toDetailedArray(),
+            'modification_status' => $order->getModificationStatus(),
+            'kot_summary' => $order->getKOTStatistics(),
+            'table_status' => $order->getTableStatus(),
+            'timestamp' => now()->toISOString()
+        ]);
+    }
+        
     /**
      * Validate status transitions
      */

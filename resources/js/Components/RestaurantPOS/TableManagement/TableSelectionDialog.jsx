@@ -43,7 +43,9 @@ const SearchBox = styled(TextField)(({ theme }) => ({
   marginBottom: theme.spacing(2),
 }));
 
-const FilterChip = styled(Chip)(({ theme, active }) => ({
+const FilterChip = styled(Chip, {
+  shouldForwardProp: (prop) => prop !== 'active',
+})(({ theme, active }) => ({
   margin: theme.spacing(0.5),
   backgroundColor: active ? theme.palette.primary.main : theme.palette.grey[200],
   color: active ? theme.palette.primary.contrastText : theme.palette.text.primary,
@@ -93,7 +95,14 @@ const TableSelectionDialog = ({
       setSelectedSection('all');
       setTempSelectedTables(selectedTables);
     }
-  }, [open, selectedTables]);
+  }, [open]);
+  
+  // Update temp selected tables when selectedTables prop changes (but only if dialog is open)
+  React.useEffect(() => {
+    if (open && JSON.stringify(selectedTables) !== JSON.stringify(tempSelectedTables)) {
+      setTempSelectedTables(selectedTables);
+    }
+  }, [selectedTables, open]);
 
   // Filter tables based on search and filters
   const filteredTables = useMemo(() => {

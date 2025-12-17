@@ -8,6 +8,8 @@ use App\Models\Restaurant\RestaurantOrder;
 use App\Models\Restaurant\RestaurantOrderItem;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\Restaurant\KOTGenerationService;
+use App\Services\Restaurant\KOTPrintService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -548,6 +550,325 @@ class KitchenController extends Controller
             'readyItems' => $stats->ready_items ?? 0,
             'avgPreparationTime' => round($stats->avg_preparation_time ?? 0, 1),
         ];
+    }
+
+    /**
+     * Generate KOT for an order
+     */
+    public function generateKOT(Request $request, $orderId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $order = RestaurantOrder::with(['items.product', 'items.modifiers.modifier'])
+            ->forStore($storeId)
+            ->findOrFail($orderId);
+
+        if ($order->status !== 'confirmed') {
+            return response()->json([
+                'message' => 'Order must be confirmed to generate KOT',
+                'error' => 'Invalid order status'
+            ], 422);
+        }
+
+        try {
+            $kotService = new KOTGenerationService();
+            $result = $kotService->generateKOTForOrder($order);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('KOT generation failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'KOT generation failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Regenerate KOT for a specific item
+     */
+    public function regenerateKOT(Request $request, $orderItemId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $orderItem = RestaurantOrderItem::whereHas('order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->with(['order', 'product', 'modifiers.modifier'])
+            ->findOrFail($orderItemId);
+
+        try {
+            $kotService = new KOTGenerationService();
+            $result = $kotService->regenerateKOTForItem($orderItem);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('KOT regeneration failed', [
+                'order_item_id' => $orderItemId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'KOT regeneration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Print KOT
+     */
+    public function printKOT(Request $request, $kotId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $kot = KitchenOrderQueue::with(['orderItem.order', 'station'])
+            ->whereHas('orderItem.order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->findOrFail($kotId);
+
+        try {
+            $printService = new KOTPrintService();
+            $result = $printService->printKOT($kot);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('KOT printing failed', [
+                'kot_id' => $kotId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'KOT printing failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Print consolidated KOT for an order
+     */
+    public function printConsolidatedKOT(Request $request, $orderId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $order = RestaurantOrder::forStore($storeId)->findOrFail($orderId);
+
+        try {
+            $printService = new KOTPrintService();
+            $result = $printService->printConsolidatedKOT($order);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('Consolidated KOT printing failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Consolidated KOT printing failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export KOT as text
+     */
+    public function exportKOTText(Request $request, $kotId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $kot = KitchenOrderQueue::with(['orderItem.order', 'station'])
+            ->whereHas('orderItem.order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->findOrFail($kotId);
+
+        try {
+            $printService = new KOTPrintService();
+            $content = $printService->exportKOTAsText($kot);
+
+            return response($content)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="KOT_' . $kot->kot_number . '.txt"');
+        } catch (\Exception $e) {
+            Log::error('KOT export failed', [
+                'kot_id' => $kotId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'KOT export failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export KOT as JSON
+     */
+    public function exportKOTJSON(Request $request, $kotId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $kot = KitchenOrderQueue::with(['orderItem.order', 'station'])
+            ->whereHas('orderItem.order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->findOrFail($kotId);
+
+        try {
+            $printService = new KOTPrintService();
+            $content = $printService->exportKOTAsJSON($kot);
+
+            return response($content)
+                ->header('Content-Type', 'application/json')
+                ->header('Content-Disposition', 'attachment; filename="KOT_' . $kot->kot_number . '.json"');
+        } catch (\Exception $e) {
+            Log::error('KOT export failed', [
+                'kot_id' => $kotId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'KOT export failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify stock for KOT
+     */
+    public function verifyKOTStock(Request $request, $kotId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $kot = KitchenOrderQueue::with(['orderItem.product', 'orderItem.modifiers.modifier'])
+            ->whereHas('orderItem.order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->findOrFail($kotId);
+
+        if ($kot->stock_verified) {
+            return response()->json([
+                'message' => 'Stock already verified for this KOT',
+                'error' => 'Already verified'
+            ], 422);
+        }
+
+        try {
+            $kot->markStockVerified(Auth::id());
+
+            return response()->json([
+                'message' => 'Stock verified successfully',
+                'kot' => $kot->load('orderItem.order')
+            ]);
+        } catch (\Exception $e) {
+            Log::error('KOT stock verification failed', [
+                'kot_id' => $kotId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Stock verification failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get KOT details
+     */
+    public function getKOTDetails(Request $request, $kotId)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+
+        $kot = KitchenOrderQueue::with([
+                'orderItem' => function($query) {
+                    $query->with(['product', 'modifiers.modifier']);
+                },
+                'orderItem.order' => function($query) {
+                    $query->with(['table', 'waiter']);
+                },
+                'station',
+                'completedBy'
+            ])
+            ->whereHas('orderItem.order', function($query) use ($storeId) {
+                $query->where('store_id', $storeId);
+            })
+            ->findOrFail($kotId);
+
+        return response()->json([
+            'kot' => $kot->getSummary()
+        ]);
+    }
+
+    /**
+     * Get KOT statistics
+     */
+    public function getKOTStatistics(Request $request)
+    {
+        $storeId = session('store_id', Auth::user()->store_id ?? 1);
+        $period = $request->input('period', 'today');
+
+        try {
+            $kotService = new KOTGenerationService();
+            $statistics = $kotService->getKOTStatistics($storeId, $period);
+
+            return response()->json($statistics);
+        } catch (\Exception $e) {
+            Log::error('KOT statistics retrieval failed', [
+                'store_id' => $storeId,
+                'period' => $period,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to retrieve KOT statistics',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Test printer connection
+     */
+    public function testPrinter(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'printer_name' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+                'message' => 'Validation failed'
+            ], 422);
+        }
+
+        try {
+            $printService = new KOTPrintService();
+            $result = $printService->testPrinterConnection($request->input('printer_name'));
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('Printer test failed', [
+                'printer_name' => $request->input('printer_name'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Printer test failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

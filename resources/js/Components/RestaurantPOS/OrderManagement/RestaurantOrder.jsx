@@ -61,7 +61,7 @@ import {
 import OrderItem from './OrderItem';
 import OrderStatusTracker from './OrderStatusTracker';
 
-const StyledCard = styled(Card)(({ theme, status, isDarkMode, isMobile, isTablet }) => {
+const StyledCard = styled(Card, { shouldForwardProp: (prop) => !['isDarkMode', 'isMobile', 'isTablet'].includes(prop) })(({ theme, status, isDarkMode, isMobile, isTablet }) => {
   const statusColor = getOrderStatusColor(status, isDarkMode);
   
   return {
@@ -72,7 +72,7 @@ const StyledCard = styled(Card)(({ theme, status, isDarkMode, isMobile, isTablet
     cursor: isMobile ? 'pointer' : 'default',
     touchAction: 'manipulation', // Improve touch performance
     borderRadius: theme.shape.borderRadius * 2,
-    boxShadow: theme.palette.shadows[2],
+    boxShadow: theme.shadows[2],
     position: 'relative',
     overflow: 'hidden',
     '&::before': {
@@ -87,7 +87,7 @@ const StyledCard = styled(Card)(({ theme, status, isDarkMode, isMobile, isTablet
       transition: 'transform 0.3s ease-in-out',
     },
     '&:hover': {
-      boxShadow: theme.palette.shadows[6],
+      boxShadow: theme.shadows[6],
       transform: isMobile ? 'scale(1.02)' : 'translateY(-4px)',
       '&::before': {
         transform: 'translateY(0)',
@@ -119,7 +119,7 @@ const TouchFab = styled(Fab)(({ theme }) => ({
   bottom: 90,
   right: 20,
   background: theme.palette.primary.gradient,
-  boxShadow: theme.palette.shadows[4],
+  boxShadow: theme.shadows[4],
   width: 60,
   height: 60,
   zIndex: 1000,
@@ -127,7 +127,7 @@ const TouchFab = styled(Fab)(({ theme }) => ({
   '&:hover': {
     background: theme.palette.primary.gradientLight,
     transform: 'scale(1.1) rotate(90deg)',
-    boxShadow: theme.palette.shadows[8],
+    boxShadow: theme.shadows[8],
   },
   '&:active': {
     transform: 'scale(0.95) rotate(90deg)',
@@ -344,7 +344,7 @@ const RestaurantOrder = ({
         onClick={() => isMobile && setExpanded(!expanded)}
       >
         <CardContent sx={{ p: compact ? (isMobile ? 1.5 : 2) : 3 }}>
-          <OrderHeader isMobile={isMobile}>
+          <OrderHeader>
             <Box flex={1}>
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <Typography

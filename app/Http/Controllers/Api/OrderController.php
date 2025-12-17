@@ -10,6 +10,9 @@ use App\Models\Restaurant\OrderSplit;
 use App\Models\Restaurant\OrderSplitItem;
 use App\Models\Product;
 use App\Models\Contact;
+use App\Models\ProductStock;
+use App\Models\Restaurant\MenuModifier;
+use App\Models\Restaurant\RestaurantTable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +81,7 @@ class OrderController extends Controller
                         'id' => $order->table->id,
                         'table_number' => $order->table->table_number,
                         'name' => $order->table->name,
+                        'status' => $order->table->status,
                     ] : null,
                     'order_type' => $order->order_type,
                     'status' => $order->status,
@@ -132,108 +136,7 @@ class OrderController extends Controller
             'sale'
         ])->forStore($storeId)->findOrFail($id);
 
-        $orderData = [
-            'id' => $order->id,
-            'order_number' => $order->order_number,
-            'table' => $order->table ? [
-                'id' => $order->table->id,
-                'table_number' => $order->table->table_number,
-                'name' => $order->table->name,
-                'section' => $order->table->section ? [
-                    'id' => $order->table->section->id,
-                    'name' => $order->table->section->name,
-                ] : null,
-            ] : null,
-            'order_type' => $order->order_type,
-            'status' => $order->status,
-            'priority' => $order->priority,
-            'customer_count' => $order->customer_count,
-            'waiter' => $order->waiter ? [
-                'id' => $order->waiter->id,
-                'name' => $order->waiter->name,
-            ] : null,
-            'subtotal' => $order->subtotal,
-            'tax_amount' => $order->tax_amount,
-            'service_charge' => $order->service_charge,
-            'discount_amount' => $order->discount_amount,
-            'total_amount' => $order->total_amount,
-            'order_date' => $order->order_date,
-            'order_time' => $order->order_time,
-            'special_instructions' => $order->special_instructions,
-            'estimated_time' => $order->estimated_time,
-            'actual_time' => $order->actual_time,
-            'completed_at' => $order->completed_at,
-            'created_at' => $order->created_at,
-            'updated_at' => $order->updated_at,
-            'items' => $order->items->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'product' => [
-                        'id' => $item->product->id,
-                        'name' => $item->product->name,
-                        'description' => $item->product->description,
-                    ],
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'unit_cost' => $item->unit_cost,
-                    'discount' => $item->discount,
-                    'status' => $item->status,
-                    'special_instructions' => $item->special_instructions,
-                    'preparation_notes' => $item->preparation_notes,
-                    'course_number' => $item->course_number,
-                    'is_complimentary' => $item->is_complimentary,
-                    'void_reason' => $item->void_reason,
-                    'kitchen_printed' => $item->kitchen_printed,
-                    'kitchen_printed_at' => $item->kitchen_printed_at,
-                    'served_by' => $item->served_by,
-                    'served_at' => $item->served_at,
-                    'subtotal' => $item->calculateSubtotal(),
-                    'modifiers' => $item->modifiers->map(function($modifier) {
-                        return [
-                            'id' => $modifier->id,
-                            'modifier' => [
-                                'id' => $modifier->modifier->id,
-                                'name' => $modifier->modifier->name,
-                                'description' => $modifier->modifier->description,
-                            ],
-                            'quantity' => $modifier->quantity,
-                            'price_adjustment' => $modifier->price_adjustment,
-                        ];
-                    }),
-                ];
-            }),
-            'splits' => $order->splits->map(function($split) {
-                return [
-                    'id' => $split->id,
-                    'split_type' => $split->split_type,
-                    'split_count' => $split->split_count,
-                    'split_number' => $split->split_number,
-                    'contact' => $split->contact ? [
-                        'id' => $split->contact->id,
-                        'name' => $split->contact->name,
-                    ] : null,
-                    'subtotal' => $split->subtotal,
-                    'tax_amount' => $split->tax_amount,
-                    'service_charge' => $split->service_charge,
-                    'discount_amount' => $split->discount_amount,
-                    'total_amount' => $split->total_amount,
-                    'paid_amount' => $split->paid_amount,
-                    'status' => $split->status,
-                    'items' => $split->items->map(function($item) {
-                        return [
-                            'id' => $item->id,
-                            'order_item' => [
-                                'id' => $item->orderItem->id,
-                                'product_name' => $item->orderItem->product->name,
-                            ],
-                            'quantity' => $item->quantity,
-                        ];
-                    }),
-                ];
-            }),
-        ];
-
-        return response()->json($orderData);
+        return response()->json($order->toDetailedArray());
     }
 
     /**
@@ -272,19 +175,56 @@ class OrderController extends Controller
             ], 422);
         }
 
+        // Additional validation for table availability
+        $tableValidation = $this->validateTableAvailability(
+            $request->input('table_id'), 
+            $request->input('customer_count'), 
+            $request->input('order_type')
+        );
+        
+        if (!$tableValidation['valid']) {
+            return response()->json([
+                'message' => 'Table not available',
+                'error' => $tableValidation['message']
+            ], 422);
+        }
+
+        // Validate product availability and stock
+        $productValidation = $this->validateProductAvailability(
+            $request->input('items'), 
+            $storeId
+        );
+        
+        if (!$productValidation['valid']) {
+            return response()->json([
+                'message' => 'Product not available',
+                'error' => $productValidation['message']
+            ], 422);
+        }
+
+        // Validate modifier combinations
+        $modifierValidation = $this->validateModifiers($request->input('items'));
+        
+        if (!$modifierValidation['valid']) {
+            return response()->json([
+                'message' => 'Invalid modifiers',
+                'error' => $modifierValidation['message']
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
-            // Generate order number
-            $orderNumber = $this->generateOrderNumber();
+            // Use lockForUpdate to prevent concurrent order creation conflicts
+            $orderNumber = $this->generateOrderNumberWithLock();
 
-            // Create restaurant order
+            // Create restaurant order with enhanced validation
             $order = RestaurantOrder::create([
                 'order_number' => $orderNumber,
                 'table_id' => $request->input('table_id'),
                 'order_type' => $request->input('order_type'),
                 'customer_count' => $request->input('customer_count'),
                 'waiter_id' => $request->input('waiter_id', Auth::id()),
-                'status' => 'pending',
+                'status' => 'pending', // Proper order status initialization
                 'priority' => $request->input('priority', 'normal'),
                 'special_instructions' => $request->input('special_instructions'),
                 'estimated_time' => $request->input('estimated_time'),
@@ -294,15 +234,17 @@ class OrderController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            // Update table status if dine-in
+            // Update table status if dine-in with proper error handling
             if ($request->input('order_type') === 'dine_in' && $request->input('table_id')) {
                 $table = RestaurantTable::find($request->input('table_id'));
-                if ($table) {
+                if ($table && $table->isAvailable()) {
                     $table->markAsOccupied($order->id);
+                } else {
+                    throw new \Exception('Table became unavailable during order creation');
                 }
             }
 
-            // Create order items
+            // Create order items with stock reservation
             $subtotal = 0;
             foreach ($request->input('items') as $itemData) {
                 $orderItem = RestaurantOrderItem::create([
@@ -320,7 +262,13 @@ class OrderController extends Controller
                     'is_complimentary' => $itemData['is_complimentary'] ?? false,
                 ]);
 
-                // Add modifiers if any
+                // Reserve stock for products with stock management
+                $product = Product::find($itemData['product_id']);
+                if ($product && $product->is_stock_managed) {
+                    $orderItem->reserveStock($storeId, $itemData['quantity']);
+                }
+
+                // Add modifiers with validation
                 if (isset($itemData['modifiers']) && !empty($itemData['modifiers'])) {
                     foreach ($itemData['modifiers'] as $modifierData) {
                         RestaurantOrderItemModifier::create([
@@ -335,20 +283,14 @@ class OrderController extends Controller
                 $subtotal += $orderItem->calculateSubtotal();
             }
 
-            // Calculate totals
-            $order->subtotal = $subtotal;
-            $order->tax_amount = $order->calculateTax();
-            $order->service_charge = $order->calculateServiceCharge();
-            $order->total_amount = $order->subtotal + 
-                               $order->tax_amount + 
-                               $order->service_charge;
-            $order->save();
+            // Calculate initial order totals
+            $order->calculateInitialTotals($subtotal);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Order created successfully',
-                'order' => $order->load(['table', 'waiter', 'items.product']),
+                'order' => $order->toDetailedArray(),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -417,7 +359,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Order status updated successfully',
-                'order' => $order->load(['table', 'waiter'])
+                'order' => $order->toDetailedArray()
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update order status', [
@@ -486,6 +428,12 @@ class OrderController extends Controller
                 'is_complimentary' => $request->input('is_complimentary', false),
             ]);
 
+            // Reserve stock for products with stock management
+            $product = Product::find($request->input('product_id'));
+            if ($product && $product->is_stock_managed) {
+                $orderItem->reserveStock($storeId, $request->input('quantity'));
+            }
+
             // Add modifiers if any
             if ($request->has('modifiers') && !empty($request->input('modifiers'))) {
                 foreach ($request->input('modifiers') as $modifierData) {
@@ -503,8 +451,8 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Item added to order',
-                'order_item' => $orderItem->load(['product', 'modifiers.modifier']),
-                'order' => $order->load(['items.product'])
+                'order_item' => $orderItem->toDetailedArray(),
+                'order' => $order->toDetailedArray()
             ], 201);
         } catch (\Exception $e) {
             Log::error('Failed to add item to order', [
@@ -539,6 +487,12 @@ class OrderController extends Controller
         }
 
         try {
+            // Release reserved stock
+            $product = Product::find($orderItem->product_id);
+            if ($product && $product->is_stock_managed) {
+                $orderItem->releaseStock($storeId, $orderItem->quantity);
+            }
+
             // Delete modifiers first
             $orderItem->modifiers()->delete();
             
@@ -550,7 +504,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Item removed from order',
-                'order' => $order->load(['items.product'])
+                'order' => $order->toDetailedArray()
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to remove order item', [
@@ -580,6 +534,102 @@ class OrderController extends Controller
         $sequence = $lastOrder ? intval(substr($lastOrder->order_number, -4)) + 1 : 1;
         
         return $prefix . $date . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generate unique order number with locking for concurrent order creation
+     */
+    private function generateOrderNumberWithLock()
+    {
+        $prefix = 'ORD';
+        $date = now()->format('Ymd');
+        
+        return DB::transaction(function() use ($prefix, $date) {
+            $lastOrder = RestaurantOrder::whereDate('created_at', today())
+                ->lockForUpdate()
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $sequence = $lastOrder ? intval(substr($lastOrder->order_number, -4)) + 1 : 1;
+            
+            return $prefix . $date . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        });
+    }
+
+    /**
+     * Validate table availability for order
+     */
+    private function validateTableAvailability($tableId, $customerCount, $orderType)
+    {
+        if ($orderType !== 'dine_in' || !$tableId) {
+            return ['valid' => true];
+        }
+
+        $table = RestaurantTable::find($tableId);
+        if (!$table) {
+            return ['valid' => false, 'message' => 'Table not found'];
+        }
+        
+        if (!$table->isAvailable()) {
+            return ['valid' => false, 'message' => 'Table is currently occupied or reserved'];
+        }
+        
+        if (!$table->canSeat($customerCount)) {
+            return ['valid' => false, 'message' => "Table cannot accommodate {$customerCount} customers"];
+        }
+        
+        return ['valid' => true];
+    }
+
+    /**
+     * Validate product availability and stock
+     */
+    private function validateProductAvailability($items, $storeId)
+    {
+        $productIds = collect($items)->pluck('product_id');
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        
+        foreach ($items as $itemData) {
+            $product = $products->get($itemData['product_id']);
+            if (!$product || !$product->is_active) {
+                return ['valid' => false, 'message' => 'One or more products are not available or inactive'];
+            }
+            
+            // Check stock for products with stock management
+            if ($product->is_stock_managed) {
+                $stock = ProductStock::where('product_id', $itemData['product_id'])
+                    ->where('store_id', $storeId)
+                    ->sum('quantity');
+                
+                if ($stock < $itemData['quantity']) {
+                    return [
+                        'valid' => false, 
+                        'message' => "Product '{$product->name}' has insufficient stock. Available: {$stock}, Requested: {$itemData['quantity']}"
+                    ];
+                }
+            }
+        }
+        
+        return ['valid' => true];
+    }
+
+    /**
+     * Validate modifier combinations
+     */
+    private function validateModifiers($items)
+    {
+        foreach ($items as $itemData) {
+            if (isset($itemData['modifiers']) && !empty($itemData['modifiers'])) {
+                $modifierIds = collect($itemData['modifiers'])->pluck('modifier_id');
+                $modifiers = MenuModifier::whereIn('id', $modifierIds)->active()->get();
+                
+                if ($modifiers->count() !== $modifierIds->count()) {
+                    return ['valid' => false, 'message' => 'One or more selected modifiers are not available'];
+                }
+            }
+        }
+        
+        return ['valid' => true];
     }
 
     /**

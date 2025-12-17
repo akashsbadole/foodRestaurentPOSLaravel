@@ -26,7 +26,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { useThemeContext } from '../../../Components/ThemeProvider';
 
-const StyledCard = styled(Card)(({ theme, isDarkMode }) => ({
+const StyledCard = styled(Card, { shouldForwardProp: (prop) => prop !== 'isDarkMode' })(({ theme, isDarkMode }) => ({
   marginBottom: theme.spacing(2),
   transition: 'all 0.3s ease',
   background: theme.palette.mode === 'dark'
@@ -40,7 +40,7 @@ const StyledCard = styled(Card)(({ theme, isDarkMode }) => ({
   },
 }));
 
-const ItemHeader = styled(Box)(({ theme, isDarkMode }) => ({
+const ItemHeader = styled(Box, { shouldForwardProp: (prop) => prop !== 'isDarkMode' })(({ theme, isDarkMode }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',

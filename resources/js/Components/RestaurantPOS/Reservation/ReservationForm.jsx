@@ -684,7 +684,7 @@ const ReservationForm = ({
             ? 'linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%)'
             : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
           borderTop: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
-          padding: theme.spacing(2),
+          padding: '16px', // Replaced theme.spacing(2) with hardcoded value
         }}
       >
         <Button

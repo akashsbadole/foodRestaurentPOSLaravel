@@ -3,6 +3,9 @@ import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/st
 import CssBaseline from '@mui/material/CssBaseline';
 import { navyTheme, darkNavyTheme } from '../lib/theme';
 
+// Get default theme to preserve shadows and other default values
+const defaultTheme = createTheme();
+
 // Create context for theme management
 const ThemeContext = createContext();
 

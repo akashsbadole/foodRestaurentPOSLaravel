@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useForm, usePage } from '@inertiajs/inertia-react';
-import { Inertia } from '@inertiajs/inertia';
+import { useForm, usePage } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     Box,
@@ -71,7 +71,7 @@ const Configure = () => {
             
             setUploading(true);
             
-            Inertia.post(route('brand.settings.upload-logo'), formData, {
+            router.post(route('brand.settings.upload-logo'), formData, {
                 onSuccess: (page) => {
                     setPreviewLogo(page.props.logo_url);
                     setData('logo_url', page.props.logo_url);

@@ -59,7 +59,7 @@ import QuickPayrollActions from './Components/QuickPayrollActions';
 const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   background: theme.palette.background.paperGradient,
-  boxShadow: theme.palette.shadows[2],
+  boxShadow: theme.shadows[2],
   border: `1px solid ${theme.palette.divider}`,
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   position: 'relative',
@@ -77,7 +77,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
   },
   '&:hover': {
     transform: 'translateY(-4px)',
-    boxShadow: theme.palette.shadows[6],
+    boxShadow: theme.shadows[6],
     '&::before': {
       transform: 'translateY(0)',
     }
@@ -121,7 +121,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend, subtitle, onClick })
               bgcolor: color || 'primary.main',
               width: 56,
               height: 56,
-              boxShadow: theme.palette.shadows[2]
+              boxShadow: theme.shadows[2]
             }}
           >
             <Icon fontSize="large" />

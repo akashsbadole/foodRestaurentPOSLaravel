@@ -50,7 +50,7 @@ import dayjs from 'dayjs';
 const StyledCard = styled(Card)(({ theme }) => ({
   height: '100%',
   background: theme.palette.background.paperGradient,
-  boxShadow: theme.palette.shadows[2],
+  boxShadow: theme.shadows[2],
   border: `1px solid ${theme.palette.divider}`,
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 }));

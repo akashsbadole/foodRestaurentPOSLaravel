@@ -176,12 +176,12 @@ export const getGeneralStatusColor = (status, isDarkMode = false) => {
 // Get Material-UI variant for chip components
 export const getTableStatusMuiVariant = (status) => {
   const statusConfig = statusColors.tableStatus[status];
-  return statusConfig ? statusConfig.muiVariant : null;
+  return statusConfig ? statusConfig.muiVariant : 'default';
 };
 
 export const getOrderStatusMuiVariant = (status) => {
   const statusConfig = statusColors.orderStatus[status];
-  return statusConfig ? statusConfig.muiVariant : null;
+  return statusConfig ? statusConfig.muiVariant : 'default';
 };
 
 // Get Tailwind CSS classes
@@ -295,7 +295,7 @@ export const getReservationStatusColor = (status, isDarkMode = false) => {
 // Get Material-UI variant for reservation chip components
 export const getReservationStatusMuiVariant = (status) => {
   const statusConfig = reservationStatus[status];
-  return statusConfig ? statusConfig.muiVariant : null;
+  return statusConfig ? statusConfig.muiVariant : 'default';
 };
 
 // Get Tailwind CSS classes for reservation status

@@ -46,16 +46,16 @@ import { useThemeContext } from '../../../Components/ThemeProvider';
 import TableSection from './TableSection';
 import Table from './Table';
 
-const FloorPlanContainer = styled(Paper)(({ theme, isMobile, isTablet, isFullscreen }) => ({
+const FloorPlanContainer = styled(Paper)(({ theme }) => ({
   position: 'relative',
   overflow: 'hidden',
   backgroundColor: theme.palette.background.default,
   backgroundImage: theme.palette.background.defaultGradient,
-  minHeight: isMobile ? '400px' : '600px',
-  height: isFullscreen ? '100vh' : 'auto',
+  minHeight: '400px',
+  height: 'auto',
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   border: `1px solid ${theme.palette.divider}`,
-  borderRadius: isFullscreen ? 0 : theme.shape.borderRadius * 2,
+  borderRadius: theme.shape.borderRadius * 2,
   touchAction: 'manipulation', // Improve touch performance
   boxShadow: theme.shadows?.[2] || '0 4px 12px rgba(30, 58, 95, 0.1), 0 2px 6px rgba(30, 58, 95, 0.06)',
   '&:hover': {
@@ -63,7 +63,9 @@ const FloorPlanContainer = styled(Paper)(({ theme, isMobile, isTablet, isFullscr
   }
 }));
 
-const FloorPlanCanvas = styled(Box)(({ theme, scale, showGrid, isDragging }) => ({
+const FloorPlanCanvas = styled(Box, {
+  shouldForwardProp: (prop) => !['showGrid', 'isDragging'].includes(prop),
+})(({ theme, scale, showGrid, isDragging }) => ({
   transform: `scale(${scale})`,
   transformOrigin: 'top left',
   transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -93,12 +95,12 @@ const FloorPlanCanvas = styled(Box)(({ theme, scale, showGrid, isDragging }) => 
   borderRadius: theme.shape?.borderRadius || 8,
 }));
 
-const ZoomControls = styled(Box)(({ theme, isMobile }) => ({
+const ZoomControls = styled(Box)(({ theme }) => ({
   position: 'absolute',
   top: theme.spacing?.(2) || 8,
   right: theme.spacing?.(2) || 8,
   display: 'flex',
-  flexDirection: isMobile ? 'row' : 'column',
+  flexDirection: 'column',
   gap: theme.spacing?.(1) || 4,
   zIndex: 1000,
   '& .MuiFab-root': {
@@ -108,8 +110,8 @@ const ZoomControls = styled(Box)(({ theme, isMobile }) => ({
     color: theme.palette?.primary?.main || '#1976d2',
     boxShadow: '0 2px 8px rgba(30, 58, 95, 0.15)',
     border: `1px solid ${theme.palette?.mode === 'dark' ? '#334155' : '#e2e8f0'}`,
-    width: isMobile ? 40 : 48,
-    height: isMobile ? 40 : 48,
+    width: 48,
+    height: 48,
     '&:hover': {
       background: theme.palette?.mode === 'dark'
         ? 'linear-gradient(135deg, #334155 0%, #475569 100%)'
@@ -119,7 +121,7 @@ const ZoomControls = styled(Box)(({ theme, isMobile }) => ({
   }
 }));
 
-const TablePosition = styled(Box)(({ theme, x, y, isDragging, isMobile }) => ({
+const TablePosition = styled(Box)(({ theme, x, y, isDragging }) => ({
   position: 'absolute',
   left: `${x}px`,
   top: `${y}px`,
@@ -173,9 +175,7 @@ const TableFloorPlan = ({
   onEditLayout,
   viewMode = 'sections', // 'sections', 'grid', 'list'
   showControls = true,
-  compact = false,
-  isTablet = false,
-  isLandscape = false
+  compact = false
 }) => {
   const theme = useTheme();
   const { isDarkMode } = useThemeContext();
@@ -209,20 +209,20 @@ const TableFloorPlan = ({
   // Auto-zoom to fit content
   useEffect(() => {
     if (!autoZoom || !canvasRef.current) return;
-    
+
     const container = canvasRef.current.parentElement;
     const canvas = canvasRef.current;
-    
+
     if (container && canvas) {
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
       const canvasWidth = canvas.scrollWidth;
       const canvasHeight = canvas.scrollHeight;
-      
+
       const scaleX = containerWidth / canvasWidth;
       const scaleY = containerHeight / canvasHeight;
       const newScale = Math.min(scaleX, scaleY, 1.5); // Max 1.5x zoom
-      
+
       setScale(newScale);
     }
   }, [autoZoom, tables, sections]);
@@ -230,7 +230,7 @@ const TableFloorPlan = ({
   // Touch gesture handlers
   const handleTouchStart = (e) => {
     if (!touchEnabled) return;
-    
+
     const touch = e.touches[0];
     setDragStart({
       x: touch.clientX - canvasOffset.x,
@@ -241,14 +241,14 @@ const TableFloorPlan = ({
 
   const handleTouchMove = (e) => {
     if (!isDragging || !touchEnabled) return;
-    
+
     e.preventDefault();
     const touch = e.touches[0];
     const newOffset = {
       x: touch.clientX - dragStart.x,
       y: touch.clientY - dragStart.y
     };
-    
+
     setCanvasOffset(newOffset);
   };
 
@@ -259,7 +259,7 @@ const TableFloorPlan = ({
   // Mouse drag handlers for desktop
   const handleMouseDown = (e) => {
     if (e.target.closest('.MuiButtonBase-root') || e.target.closest('.MuiIconButton-root')) return;
-    
+
     setDragStart({
       x: e.clientX - canvasOffset.x,
       y: e.clientY - canvasOffset.y
@@ -269,13 +269,13 @@ const TableFloorPlan = ({
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
-    
+
     e.preventDefault();
     const newOffset = {
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y
     };
-    
+
     setCanvasOffset(newOffset);
   };
 
@@ -286,13 +286,13 @@ const TableFloorPlan = ({
   // Global mouse event listeners
   useEffect(() => {
     if (!isDragging) return;
-    
+
     const handleGlobalMouseMove = (e) => handleMouseMove(e);
     const handleGlobalMouseUp = () => handleMouseUp();
-    
+
     document.addEventListener('mousemove', handleGlobalMouseMove);
     document.addEventListener('mouseup', handleGlobalMouseUp);
-    
+
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
@@ -492,7 +492,7 @@ const TableFloorPlan = ({
               <Button
                 variant={viewMode === 'sections' ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => {}}
+                onClick={() => { }}
                 sx={{
                   borderColor: 'primary.main',
                   color: viewMode === 'sections' ? 'primary.contrastText' : 'primary.main',
@@ -508,7 +508,7 @@ const TableFloorPlan = ({
               <Button
                 variant={viewMode === 'grid' ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => {}}
+                onClick={() => { }}
                 sx={{
                   borderColor: 'primary.main',
                   color: viewMode === 'grid' ? 'primary.contrastText' : 'primary.main',
@@ -524,7 +524,7 @@ const TableFloorPlan = ({
               <Button
                 variant={viewMode === 'list' ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => {}}
+                onClick={() => { }}
                 sx={{
                   borderColor: 'primary.main',
                   color: viewMode === 'list' ? 'primary.contrastText' : 'primary.main',
@@ -738,7 +738,7 @@ const TableFloorPlan = ({
           <Typography variant="h6" gutterBottom>
             Floor Plan Settings
           </Typography>
-          
+
           <List>
             <ListItem>
               <ListItemIcon>
@@ -753,7 +753,7 @@ const TableFloorPlan = ({
                 onChange={(e) => setTouchEnabled(e.target.checked)}
               />
             </ListItem>
-            
+
             <ListItem>
               <ListItemIcon>
                 <ZoomInIcon />
@@ -767,9 +767,9 @@ const TableFloorPlan = ({
                 onChange={(e) => setAutoZoom(e.target.checked)}
               />
             </ListItem>
-            
+
             <Divider />
-            
+
             <ListItem>
               <ListItemText
                 primary="Table Size"
@@ -790,7 +790,7 @@ const TableFloorPlan = ({
                 </Select>
               </FormControl>
             </ListItem>
-            
+
             <ListItem>
               <ListItemText
                 primary="Zoom Level"

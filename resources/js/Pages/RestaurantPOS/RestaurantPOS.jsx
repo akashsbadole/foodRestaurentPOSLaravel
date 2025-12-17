@@ -80,7 +80,7 @@ const MainContainer = styled(Box)(({ theme, isMobile, isTablet }) => ({
   },
   // Touch optimization
   touchAction: 'manipulation',
-  '-webkit-tap-highlight-color': 'transparent',
+  WebkitTapHighlightColor: 'transparent',
   // Smooth scrolling
   scrollBehavior: 'smooth',
 }));
@@ -126,7 +126,7 @@ const ContentArea = styled(Box)(({ theme, isMobile, isTablet }) => ({
   },
   // Touch optimization
   touchAction: 'pan-y pinch-zoom',
-  '-webkit-overflow-scrolling': 'touch',
+  WebkitOverflowScrolling: 'touch',
 }));
 
 const TouchFab = styled(Fab)(({ theme }) => ({
@@ -168,7 +168,7 @@ const TouchFab = styled(Fab)(({ theme }) => ({
   },
   // Touch optimization
   touchAction: 'manipulation',
-  '-webkit-tap-highlight-color': 'transparent',
+  WebkitTapHighlightColor: 'transparent',
 }));
 
 const TabPanel = ({ children, value, index, ...other }) => (
@@ -661,14 +661,12 @@ const RestaurantPOS = ({
     <>
       <Head title="Restaurant POS" />
       <MainContainer
-        isMobile={isMobile}
-        isTablet={isTablet}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* Header */}
-        <HeaderBar isMobile={isMobile} isTablet={isTablet}>
+        <HeaderBar>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={4}>
               <Box display="flex" alignItems="center" gap={2}>
@@ -936,7 +934,7 @@ const RestaurantPOS = ({
               {[0, 1, 2, 3, 4].map((index) => (
                 <ListItem
                   key={index}
-                  button
+                  button={true}
                   selected={activeTab === index}
                   onClick={() => {
                     setActiveTab(index);
@@ -1001,7 +999,7 @@ const RestaurantPOS = ({
         </SwipeableDrawer>
 
         {/* Main Content */}
-        <ContentArea isMobile={isMobile} isTablet={isTablet}>
+        <ContentArea>
           {/* Desktop/Tablet Tabs */}
           {!isMobile && (
             <Box
@@ -1105,8 +1103,6 @@ const RestaurantPOS = ({
               }}
               onAddTable={() => setShowTableDialog(true)}
               compact={isMobile}
-              isTablet={isTablet}
-              isLandscape={isLandscape}
             />
           </TabPanel>
 
@@ -1148,8 +1144,6 @@ const RestaurantPOS = ({
               }}
               onRefresh={handleRefresh}
               compact={isMobile}
-              isTablet={isTablet}
-              isLandscape={isLandscape}
             />
           </TabPanel>
 
@@ -1181,7 +1175,6 @@ const RestaurantPOS = ({
                 console.log('Add reservation:', reservation);
               }}
               compact={isMobile}
-              isTablet={isTablet}
             />
           </TabPanel>
         </ContentArea>

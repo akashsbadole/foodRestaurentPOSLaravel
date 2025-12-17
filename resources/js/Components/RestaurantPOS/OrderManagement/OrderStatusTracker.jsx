@@ -18,6 +18,7 @@ import {
   Schedule as ScheduledIcon,
   Restaurant as PreparingIcon,
   LocalDining as ReadyIcon,
+  LocalDining,
   DoneAll as CompletedIcon,
   Cancel as CancelledIcon,
   Edit as EditIcon

@@ -63,7 +63,9 @@ import { useCustomTheme } from '@/Components/ThemeProvider';
 import { getReservationStatusColor } from '../../../lib/statusColors';
 import ReservationForm from './ReservationForm';
 
-const CalendarContainer = styled(Box)(({ theme, isMobile, isTablet }) => ({
+const CalendarContainer = styled(Box, {
+  shouldForwardProp: (prop) => !['isMobile', 'isTablet'].includes(prop),
+})(({ theme, isMobile, isTablet }) => ({
   display: 'flex',
   flexDirection: 'column',
   height: '100%',
@@ -74,7 +76,9 @@ const CalendarContainer = styled(Box)(({ theme, isMobile, isTablet }) => ({
   touchAction: 'manipulation', // Improve touch performance
 }));
 
-const CalendarHeader = styled(Box)(({ theme, isMobile }) => ({
+const CalendarHeader = styled(Box, {
+  shouldForwardProp: (prop) => !['isMobile'].includes(prop),
+})(({ theme, isMobile }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -93,13 +97,17 @@ const CalendarHeader = styled(Box)(({ theme, isMobile }) => ({
   gap: isMobile ? theme.spacing(1) : 0,
 }));
 
-const CalendarGrid = styled(Grid)(({ theme, isMobile }) => ({
+const CalendarGrid = styled(Grid, {
+  shouldForwardProp: (prop) => !['isMobile'].includes(prop),
+})(({ theme, isMobile }) => ({
   flex: 1,
   overflow: 'auto',
   touchAction: 'pan-y', // Allow vertical scrolling on touch
 }));
 
-const DayCard = styled(Card)(({ theme, isCurrentMonth, hasReservations, isSelected, isMobile, isUrgent }) => ({
+const DayCard = styled(Card, {
+  shouldForwardProp: (prop) => !['isCurrentMonth', 'hasReservations', 'isSelected', 'isMobile', 'isUrgent'].includes(prop),
+})(({ theme, isCurrentMonth, hasReservations, isSelected, isMobile, isUrgent }) => ({
   cursor: 'pointer',
   transition: 'all 0.3s ease',
   border: isSelected ? `2px solid #3182ce` : `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(30, 58, 95, 0.1)'}`,
@@ -139,7 +147,9 @@ const DayCard = styled(Card)(({ theme, isCurrentMonth, hasReservations, isSelect
   touchAction: 'manipulation',
 }));
 
-const ReservationChip = styled(Chip)(({ theme, status, isMobile }) => {
+const ReservationChip = styled(Chip, {
+  shouldForwardProp: (prop) => !['isMobile'].includes(prop),
+})(({ theme, status, isMobile }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return '#10b981';

@@ -26,6 +26,11 @@ To run this application, ensure you have the following installed:
 - **Node.js**: (for Inertia JS and React)
 - **MySQL**: (for the database)
 
+```
+php artisan optimize:clear
+
+```
+
 ## Installation
 
 To get started with the POS system, follow these steps:
